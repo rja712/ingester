@@ -1,0 +1,5 @@
+gmail:
+  client-id: test
+  client-secret: test
+  redirect-url: http://localhost
+  scope: test
