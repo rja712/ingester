@@ -2,7 +2,7 @@ spring:
   application:
     name: ingester
   datasource:
-    url: jdbc:postgresql://localhost:5432/mydb
+    url: jdbc:postgresql://localhost:5432/ingester
     username: postgres
     password: postgres
     driver-class-name: org.postgresql.Driver
@@ -22,7 +22,7 @@ spring:
 gmail-api:
   client-id: ${GOOGLE_CLIENT_ID}
   client-secret: ${GOOGLE_CLIENT_SECRET}
-  redirect-url: "http://localhost:8080/oauth/callback"
-  scope: "https://www.googleapis.com/auth/gmail.readonly"
+  redirect-uri: "http://localhost:8080/gmail-api/token-callback"
+  scope: "openid email https://www.googleapis.com/auth/gmail.readonly"
 
 

@@ -1,5 +1,6 @@
 package com.inboxintelligence.ingester.contoller;
 
+import com.inboxintelligence.ingester.external.GmailAPIOAuthLoginService;
 import com.inboxintelligence.ingester.internal.GmailAPITokenService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -9,38 +10,27 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 
 @RestController
-@RequestMapping("/oauth")
+@RequestMapping("/gmail-api")
 @RequiredArgsConstructor
 public class GmailAPIController {
 
-    public static GmailAPITokenService gmailAPITokenService;
-    p
+    public final GmailAPIOAuthLoginService gmailAPIOAuthLoginService;
+    public final GmailAPITokenService gmailAPITokenService;
+
     @GetMapping("/login")
-    public void login(HttpServletResponse response) throws IOException {
-
-        String authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
-                + "?client_id=" + clientId
-                + "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8)
-                + "&response_type=code"
-                + "&scope=" + URLEncoder.encode(scope, StandardCharsets.UTF_8)
-                + "&access_type=offline"
-                + "&prompt=consent";
-
-        response.sendRedirect(authUrl);
+    public void invokeOAuthRedirectURI(HttpServletResponse response) {
+        try {
+            var authUrl = gmailAPIOAuthLoginService.invokeOAuthRedirectURI();
+            response.sendRedirect(authUrl);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    @GetMapping("/callback")
-    public String callback(@RequestParam String code) throws Exception {
-
-        log.info("Google OAuth callback processed successfully"); // i have added @slf4j still this is giving error
-
-        String accessToken = tokenResponse.getAccessToken();
-        String refreshToken = tokenResponse.getRefreshToken();
-
-        return "OAuth successful. You can close this tab.";
+    @GetMapping("/token-callback")
+    public void processTokenCallbackCode(@RequestParam String code) {
+        gmailAPITokenService.processTokenCallbackCode(code);
     }
 }

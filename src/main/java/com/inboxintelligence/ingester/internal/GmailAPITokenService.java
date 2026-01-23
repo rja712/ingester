@@ -1,28 +1,30 @@
 package com.inboxintelligence.ingester.internal;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.inboxintelligence.ingester.common.GmailAPIProperties;
+import com.inboxintelligence.ingester.model.EmailMetadata;
+import com.inboxintelligence.ingester.service.EmailMetadataService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriComponentsBuilder;
+
+import java.util.Collections;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailAPITokenService {
 
+    private static final String TOKEN_URL = "https://oauth2.googleapis.com/token";
     private final GmailAPIProperties gmailAPIProperties;
     private final NetHttpTransport httpTransport = new NetHttpTransport();
     private final GsonFactory gsonFactory = GsonFactory.getDefaultInstance();
+    private final EmailMetadataService emailMetadataService;
 
-    private static final String TOKEN_URL = "https://oauth2.googleapis.com/token";
-
-    public GoogleTokenResponse callback(String code) {
+    public void processTokenCallbackCode(String code) {
         try {
             var request = new GoogleAuthorizationCodeTokenRequest(
                     httpTransport,
@@ -32,7 +34,23 @@ public class GmailAPITokenService {
                     gmailAPIProperties.clientSecret(),
                     code,
                     gmailAPIProperties.redirectUri());
-            return request.execute();
+
+            var googleTokenResponse = request.execute();
+
+            var verifier = new GoogleIdTokenVerifier.Builder(httpTransport, gsonFactory)
+                    .setAudience(Collections.singletonList(gmailAPIProperties.clientId()))
+                    .build();
+
+            var googleIdToken = verifier.verify(googleTokenResponse.getIdToken());
+
+            var emailMetadata = EmailMetadata.builder()
+                    .emailAddress(googleIdToken.getPayload().getEmail())
+                    .accessToken(googleTokenResponse.getAccessToken())
+                    .refreshToken(googleTokenResponse.getRefreshToken())
+                    .build();
+
+            emailMetadataService.save(emailMetadata);
+
         } catch (Exception e) {
             log.error("Failed to exchange authorization code for token", e);
             throw new IllegalStateException("OAuth token exchange failed");

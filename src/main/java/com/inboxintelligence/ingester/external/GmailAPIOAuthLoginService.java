@@ -13,7 +13,7 @@ public class GmailAPIOAuthLoginService {
 
     private final GmailAPIProperties gmailAPIProperties;
 
-    public String getOAuthRedirectURI() {
+    public String invokeOAuthRedirectURI() {
         return UriComponentsBuilder.fromUriString("https://accounts.google.com/o/oauth2/v2/auth")
                 .queryParam("client_id", gmailAPIProperties.clientId())
                 .queryParam("redirect_uri", gmailAPIProperties.redirectUri())
