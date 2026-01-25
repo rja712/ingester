@@ -51,6 +51,8 @@ public class GmailAPITokenService {
 
             emailMetadataService.save(emailMetadata);
 
+            log.info("Saved Email MetaData {}", emailMetadata.getEmailAddress());
+
         } catch (Exception e) {
             log.error("Failed to exchange authorization code for token", e);
             throw new IllegalStateException("OAuth token exchange failed");

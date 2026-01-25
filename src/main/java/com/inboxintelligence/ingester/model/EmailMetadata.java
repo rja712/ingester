@@ -6,10 +6,10 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "email_metadata")
 @Data
 @Builder
+@Entity
+@Table(name = "email_metadata")
 public class EmailMetadata {
 
     @Id
