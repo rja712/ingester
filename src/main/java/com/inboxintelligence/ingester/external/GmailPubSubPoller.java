@@ -52,7 +52,7 @@ public class GmailPubSubPoller {
 
             var gmailevent = objectMapper.readValue(payload, GmailEvent.class);
 
-            handleGmailEvent(event);
+            handleGmailEvent(gmailevent);
 
             var ackRequest = AcknowledgeRequest.newBuilder()
                             .setSubscription(subscriptionName.toString())
@@ -63,16 +63,11 @@ public class GmailPubSubPoller {
 
         } catch (Exception e) {
             log.error("Failed to process Pub/Sub message, will retry", e);
-            // NO ACK here → Pub/Sub will redeliver
         }
     }
 
     private void handleGmailEvent(GmailEvent event) {
-        log.info(
-                "Received Gmail event: email={}, historyId={}",
-                event.emailAddress(),
-                event.historyId()
-        );
+        log.info("Received Gmail event: email={}, historyId={}", event.emailAddress(), event.historyId());
 
         // TODO:
         // 1. Load lastProcessedHistoryId from DB
