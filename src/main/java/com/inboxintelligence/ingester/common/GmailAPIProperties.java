@@ -8,6 +8,7 @@ public record GmailAPIProperties(
         String clientId,
         String clientSecret,
         String redirectUri,
-        String scope
+        String scope,
+        String pubsubTopic
 ) {
 }

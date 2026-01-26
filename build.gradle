@@ -25,6 +25,13 @@ repositories {
 }
 
 dependencies {
+
+
+	implementation "com.google.auth:google-auth-library-oauth2-http:1.23.0"
+
+
+
+
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
 	implementation 'org.springframework.boot:spring-boot-starter-amqp'
@@ -36,6 +43,7 @@ dependencies {
 	implementation 'com.google.apis:google-api-services-gmail:v1-rev110-1.25.0'
 	implementation 'com.google.http-client:google-http-client-jackson2:1.44.1'
 	implementation 'com.google.cloud:google-cloud-pubsub:1.144.1'
+	implementation "com.google.auth:google-auth-library-oauth2-http:1.23.0"
 
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'

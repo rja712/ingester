@@ -24,5 +24,6 @@ gmail-api:
   client-secret: ${GOOGLE_CLIENT_SECRET}
   redirect-uri: "http://localhost:8080/gmail-api/token-callback"
   scope: "openid email https://www.googleapis.com/auth/gmail.readonly"
+  pubsub-topic: "projects/inboxintelligence-01/topics/gmail-events"
 
 
