@@ -25,5 +25,8 @@ gmail-api:
   redirect-uri: "http://localhost:8080/gmail-api/token-callback"
   scope: "openid email https://www.googleapis.com/auth/gmail.readonly"
   pubsub-topic: "projects/inboxintelligence-01/topics/gmail-events"
+  project-id: "inboxintelligence-01"
+  pubsub-subscription-id: "gmail-events-sub"
+
 
 
