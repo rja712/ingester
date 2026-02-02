@@ -35,7 +35,7 @@ public class GmailAPIController {
 
     @GetMapping("/token-callback")
     public void processTokenCallbackCode(@RequestParam String code) {
-        log.info("Received Token Callback Code");
+        log.info("Received Authorization Code");
         gmailAPITokenService.processTokenCallbackCode(code);
     }
 }

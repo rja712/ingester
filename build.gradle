@@ -33,7 +33,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 
 	implementation platform("com.google.cloud:libraries-bom:26.47.0")
-	implementation "com.google.apis:google-api-services-gmail:v1-rev110-1.25.0"
+	implementation "com.google.apis:google-api-services-gmail:v1-rev20230925-2.0.0"
 	implementation "com.google.cloud:google-cloud-pubsub"
 
 	implementation 'org.flywaydb:flyway-core'

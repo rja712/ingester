@@ -7,6 +7,7 @@ import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import com.inboxintelligence.ingester.common.GmailAPIProperties;
 import com.inboxintelligence.ingester.model.GmailEvent;
+import com.inboxintelligence.ingester.service.GmailMailboxService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -20,8 +21,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class GmailPubSubSubscriber {
 
-    private final GmailAPIProperties gmailAPIProperties;
     private final ObjectMapper objectMapper;
+    private final GmailAPIProperties gmailAPIProperties;
+    private final GmailMailboxService gmailMailboxService;
+    private final GmailSyncService gmailSyncService;
 
     private Subscriber subscriber;
 
@@ -41,18 +44,30 @@ public class GmailPubSubSubscriber {
         }
     }
 
-    private void handleMessage(PubsubMessage message, AckReplyConsumer consumer) {
+    public void handleMessage(PubsubMessage message, AckReplyConsumer consumer) {
         try {
             String payload = message.getData().toStringUtf8();
-            log.info("Received payload {} ", payload);
+            log.info("Received Gmail Pub/Sub payload: {}", payload);
+
             var event = objectMapper.readValue(payload, GmailEvent.class);
 
-            // TODO:
-            // 1. Load lastProcessedHistoryId from DB
-            // 2. Call Gmail History API
-            // 3. Fetch new messages
-            // 4. Persist results
+            var gmailMailboxOptional = gmailMailboxService.findByEmailAddress(event.emailAddress());
 
+            if (gmailMailboxOptional.isEmpty()) {
+                log.warn("Mailbox not found for email {}", event.emailAddress());
+                consumer.ack();
+                return;
+            }
+
+            var mailbox = gmailMailboxOptional.get();
+
+            if (mailbox.getHistoryId() > event.historyId()) {
+                log.info("Ignoring stale Gmail event");
+                consumer.ack();
+                return;
+            }
+
+            gmailSyncService.triggerSyncJob(mailbox);
             consumer.ack();
 
         } catch (Exception e) {
