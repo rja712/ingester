@@ -46,7 +46,6 @@ public class GmailPubSubSubscriber {
             String payload = message.getData().toStringUtf8();
             log.info("Received payload {} ", payload);
             var event = objectMapper.readValue(payload, GmailEvent.class);
-            log.info("Received Gmail event: email={}, historyId={}", event.emailAddress(), event.historyId());
 
             // TODO:
             // 1. Load lastProcessedHistoryId from DB
