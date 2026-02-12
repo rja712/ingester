@@ -17,7 +17,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class GmailAPITokenService {
+public class GmailTokenService {
 
 
     private final GmailAPIProperties gmailAPIProperties;
@@ -25,9 +25,11 @@ public class GmailAPITokenService {
     private final GmailClientFactory gmailClientFactory;
 
     public void processTokenCallbackCode(String authorizationCode) {
+
+        log.info("Processing Gmail OAuth callback");
+
         try {
 
-            log.info("Processing Gmail OAuth callback");
             var tokenResponse = gmailClientFactory.createAuthorizationCodeTokenRequest(authorizationCode).execute();
             var emailAddress = verifyAndExtractEmail(tokenResponse);
             var watchResponse = startMailboxWatch(tokenResponse);
@@ -44,7 +46,7 @@ public class GmailAPITokenService {
 
     private String verifyAndExtractEmail(GoogleTokenResponse tokenResponse) throws Exception {
 
-        log.debug("Verifying Google ID token");
+        log.info("Verifying Google ID token");
         var idToken = gmailClientFactory.createIdTokenVerifier().verify(tokenResponse.getIdToken());
 
         if (idToken == null) {
@@ -60,14 +62,14 @@ public class GmailAPITokenService {
 
     private WatchResponse startMailboxWatch(GoogleTokenResponse tokenResponse) throws Exception {
 
-        log.debug("Starting Gmail mailbox watch (Pub/Sub)");
-        var gmail = gmailClientFactory.createUsingGoogleTokenResponse(tokenResponse);
+        log.info("Starting Gmail mailbox watch (Pub/Sub)");
 
+        var gmail = gmailClientFactory.createUsingGoogleTokenResponse(tokenResponse);
         var watchRequest = new WatchRequest()
                 .setTopicName(gmailAPIProperties.pubsubTopic())
                 .setLabelIds(List.of("INBOX"));
-
         var response = gmail.users().watch("me", watchRequest).execute();
+
         log.info("Mailbox watch started. historyId={}, expiresAt={}", response.getHistoryId(), response.getExpiration());
 
         return response;
@@ -88,7 +90,7 @@ public class GmailAPITokenService {
         gmailMailbox.setSyncStatus(SyncStatus.ACTIVE);
 
         gmailMailboxService.save(gmailMailbox);
-        log.debug("Persisted Gmail mailbox entity for {}", email);
+        log.info("Persisted Gmail mailbox entity for {}", email);
 
     }
 }

@@ -1,7 +1,7 @@
 package com.inboxintelligence.ingester.contoller;
 
-import com.inboxintelligence.ingester.external.GmailAPIOAuthLoginService;
-import com.inboxintelligence.ingester.internal.GmailAPITokenService;
+import com.inboxintelligence.ingester.external.GmailOAuthLoginService;
+import com.inboxintelligence.ingester.internal.GmailTokenService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,16 +18,20 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class GmailAPIController {
 
-    public final GmailAPIOAuthLoginService gmailAPIOAuthLoginService;
-    public final GmailAPITokenService gmailAPITokenService;
+    public final GmailOAuthLoginService gmailOAuthLoginService;
+    public final GmailTokenService gmailTokenService;
 
     @GetMapping("/login")
     public void invokeOAuthRedirectURI(HttpServletResponse response) {
+
         log.info("Invoking oAuth Redirect URI");
+
         try {
-            var authUrl = gmailAPIOAuthLoginService.invokeOAuthRedirectURI();
+
+            var authUrl = gmailOAuthLoginService.invokeOAuthRedirectURI();
             log.info("Generated Gmail Oauth Redirect URI");
             response.sendRedirect(authUrl);
+
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -35,7 +39,9 @@ public class GmailAPIController {
 
     @GetMapping("/token-callback")
     public void processTokenCallbackCode(@RequestParam String code) {
+
         log.info("Received Authorization Code");
-        gmailAPITokenService.processTokenCallbackCode(code);
+        gmailTokenService.processTokenCallbackCode(code);
+
     }
 }

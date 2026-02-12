@@ -9,11 +9,12 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class GmailAPIOAuthLoginService {
+public class GmailOAuthLoginService {
 
     private final GmailAPIProperties gmailAPIProperties;
 
     public String invokeOAuthRedirectURI() {
+
         return UriComponentsBuilder.fromUriString("https://accounts.google.com/o/oauth2/v2/auth")
                 .queryParam("client_id", gmailAPIProperties.clientId())
                 .queryParam("redirect_uri", gmailAPIProperties.redirectUri())
@@ -25,6 +26,4 @@ public class GmailAPIOAuthLoginService {
                 .encode()
                 .toUriString();
     }
-
-
 }
