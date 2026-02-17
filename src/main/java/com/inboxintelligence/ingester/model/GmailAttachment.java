@@ -20,21 +20,23 @@ public class GmailAttachment {
 
     /* ---------- relations ---------- */
 
-    @Column(name = "message_id", nullable = false)
-    private String messageId;   // Gmail messageId
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "fk_gmail_inbox_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_gmail_gmail_attachment_inbox")
+    )
+    private GmailInbox gmailInbox;
 
-    @Column(name = "thread_id")
-    private String threadId;
+    /* ---------- gmail metadata ---------- */
 
-    /* ---------- attachment metadata ---------- */
-
-    @Column(name = "gmail_attachment_id")
+    @Column(name = "gmail_attachment_id", length = 255)
     private String gmailAttachmentId;
 
-    @Column(name = "file_name", nullable = false)
+    @Column(name = "file_name", nullable = false, length = 500)
     private String fileName;
 
-    @Column(name = "mime_type")
+    @Column(name = "mime_type", length = 255)
     private String mimeType;
 
     @Column(name = "size_in_bytes")
@@ -42,10 +44,10 @@ public class GmailAttachment {
 
     /* ---------- storage ---------- */
 
-    @Column(name = "storage_path", nullable = false)
-    private String storagePath;     // S3 key or blob path
+    @Column(name = "storage_path", nullable = false, length = 1000)
+    private String storagePath;
 
-    @Column(name = "storage_provider", nullable = false)
+    @Column(name = "storage_provider", nullable = false, length = 100)
     private String storageProvider = "S3";
 
     /* ---------- processing ---------- */
