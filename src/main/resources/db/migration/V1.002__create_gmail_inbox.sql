@@ -1,4 +1,4 @@
-CREATE TABLE email_inbox (
+CREATE TABLE gmail_inbox (
 
     id BIGSERIAL PRIMARY KEY,
 
@@ -33,11 +33,11 @@ CREATE TABLE email_inbox (
 
 
 CREATE INDEX idx_inbox_mailbox
-    ON email_inbox (mailbox_id);
+    ON gmail_inbox (mailbox_id);
 
 CREATE INDEX idx_inbox_thread
-    ON email_inbox (vendor_thread_id);
+    ON gmail_inbox (vendor_thread_id);
 
 CREATE INDEX idx_inbox_parent
-    ON email_inbox (parent_vendor_message_id);
+    ON gmail_inbox (parent_vendor_message_id);
 

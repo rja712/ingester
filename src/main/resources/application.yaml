@@ -2,7 +2,7 @@ spring:
   application:
     name: ingester
   datasource:
-    url: jdbc:postgresql://localhost:5432/inboxdb
+    url: jdbc:postgresql://localhost:5432/ingester
     username: inboxuser
     password: inboxpass
     driver-class-name: org.postgresql.Driver
