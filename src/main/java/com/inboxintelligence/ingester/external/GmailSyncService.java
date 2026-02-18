@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
 
-import static com.inboxintelligence.ingester.common.Base64Utils.decodeBase64String;
+import static com.inboxintelligence.ingester.utils.Base64Utils.decodeBase64String;
 
 @Service
 @Slf4j
@@ -152,9 +152,6 @@ public class GmailSyncService {
 
         return null;
     }
-
-
-
 
 
     private void processMessagesDeleted(HistoryMessageDeleted historyMessageDeleted, GmailMailbox gmailMailbox) {

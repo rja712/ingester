@@ -1,7 +1,6 @@
 package com.inboxintelligence.ingester.external;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.client.http.HttpResponseException;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.pubsub.v1.ProjectSubscriptionName;
@@ -54,7 +53,7 @@ public class GmailPubSubSubscriber {
 
     public void handleMessage(PubsubMessage message, AckReplyConsumer consumer) {
 
-        GmailMailbox mailbox = null;
+        GmailMailbox gmailMailbox = null;
 
         try {
             String payload = message.getData().toStringUtf8();
@@ -69,26 +68,26 @@ public class GmailPubSubSubscriber {
                 return;
             }
 
-            mailbox = gmailMailboxOptional.get();
+            gmailMailbox = gmailMailboxOptional.get();
 
-            if (mailbox.getHistoryId() > event.historyId()) {
+            if (gmailMailbox.getHistoryId() > event.historyId()) {
                 log.info("Ignoring stale Gmail event");
                 consumer.ack();
                 return;
             }
 
-            gmailSyncService.triggerSyncJob(mailbox);
+            gmailSyncService.triggerSyncJob(gmailMailbox);
             consumer.ack();
 
         } catch (Exception e) {
 
-            if (mailbox != null && e.toString().contains("invalid_grant")) {
+            if (gmailMailbox != null && e.toString().contains("invalid_grant")) {
 
-                log.error("Refresh token revoked for {}", mailbox.getEmailAddress());
+                log.error("Refresh token revoked for {}", gmailMailbox.getEmailAddress());
 
-                mailbox.setSyncStatus(DISCONNECTED);
-                mailbox.setLastSyncError("Refresh token revoked");
-                gmailMailboxService.save(mailbox);
+                gmailMailbox.setSyncStatus(DISCONNECTED);
+                gmailMailbox.setLastSyncError("Refresh token revoked");
+                gmailMailboxService.save(gmailMailbox);
                 consumer.ack();
                 return;
             }

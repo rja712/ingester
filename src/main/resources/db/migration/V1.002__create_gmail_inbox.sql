@@ -5,19 +5,22 @@ CREATE TABLE gmail_inbox (
     fk_gmail_mailbox_id BIGINT NOT NULL,
 
     -- vendor identifiers
-    vendor_message_id VARCHAR(128) NOT NULL,
-    vendor_thread_id VARCHAR(128) NOT NULL,
-    parent_vendor_message_id VARCHAR(128),
+    message_id VARCHAR(128) NOT NULL,
+    thread_id VARCHAR(128) NOT NULL,
+    parent_message_id VARCHAR(128) DEFAULT NULL,
+    raw_message TEXT,
 
     -- content
     subject TEXT,
     from_address VARCHAR(255),
-    body_text TEXT,
+    to_address TEXT,
+    cc_address TEXT,
+    body TEXT,
 
     sent_at TIMESTAMP,
     received_at TIMESTAMP,
 
-    is_deleted BOOLEAN DEFAULT FALSE,
+    is_processed BOOLEAN NOT NULL DEFAULT FALSE,
 
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -28,11 +31,11 @@ CREATE TABLE gmail_inbox (
         ON DELETE CASCADE,
 
     CONSTRAINT uq_inbox_message
-        UNIQUE (fk_gmail_mailbox_id, vendor_message_id)
+        UNIQUE (fk_gmail_mailbox_id, message_id)
 );
 
 
 CREATE INDEX idx_inbox_mailbox ON gmail_inbox (fk_gmail_mailbox_id);
-CREATE INDEX idx_inbox_thread ON gmail_inbox (vendor_thread_id);
-CREATE INDEX idx_inbox_parent ON gmail_inbox (parent_vendor_message_id);
+CREATE INDEX idx_inbox_thread ON gmail_inbox (thread_id);
+CREATE INDEX idx_inbox_parent ON gmail_inbox (parent_message_id);
 

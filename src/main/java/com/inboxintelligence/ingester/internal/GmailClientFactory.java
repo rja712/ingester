@@ -42,10 +42,10 @@ public class GmailClientFactory {
 
     public Gmail createUsingRefreshToken(String refreshToken) {
         var credentials = UserCredentials.newBuilder()
-                        .setClientId(gmailAPIProperties.clientId())
-                        .setClientSecret(gmailAPIProperties.clientSecret())
-                        .setRefreshToken(refreshToken)
-                        .build();
+                .setClientId(gmailAPIProperties.clientId())
+                .setClientSecret(gmailAPIProperties.clientSecret())
+                .setRefreshToken(refreshToken)
+                .build();
         return this.create(credentials);
     }
 
@@ -72,7 +72,6 @@ public class GmailClientFactory {
                 .setAudience(Collections.singletonList(gmailAPIProperties.clientId()))
                 .build();
     }
-
 
 
 }

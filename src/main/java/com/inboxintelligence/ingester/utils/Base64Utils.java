@@ -1,4 +1,4 @@
-package com.inboxintelligence.ingester.common;
+package com.inboxintelligence.ingester.utils;
 
 import lombok.experimental.UtilityClass;
 
