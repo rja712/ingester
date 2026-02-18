@@ -1,4 +1,4 @@
-package com.inboxintelligence.ingester.service;
+package com.inboxintelligence.ingester.persistence.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

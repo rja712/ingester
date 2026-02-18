@@ -1,7 +1,7 @@
-package com.inboxintelligence.ingester.contoller;
+package com.inboxintelligence.ingester.inbound;
 
-import com.inboxintelligence.ingester.external.GmailOAuthLoginService;
-import com.inboxintelligence.ingester.internal.GmailTokenService;
+import com.inboxintelligence.ingester.domain.GmailOAuthLoginService;
+import com.inboxintelligence.ingester.domain.GmailTokenService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

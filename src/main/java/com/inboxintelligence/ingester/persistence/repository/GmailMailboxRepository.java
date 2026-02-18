@@ -1,4 +1,4 @@
-package com.inboxintelligence.ingester.repository;
+package com.inboxintelligence.ingester.persistence.repository;
 
 import com.inboxintelligence.ingester.model.GmailMailbox;
 import org.springframework.data.jpa.repository.JpaRepository;

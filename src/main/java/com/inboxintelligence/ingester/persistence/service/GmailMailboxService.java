@@ -1,7 +1,7 @@
-package com.inboxintelligence.ingester.service;
+package com.inboxintelligence.ingester.persistence.service;
 
 import com.inboxintelligence.ingester.model.GmailMailbox;
-import com.inboxintelligence.ingester.repository.GmailMailboxRepository;
+import com.inboxintelligence.ingester.persistence.repository.GmailMailboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

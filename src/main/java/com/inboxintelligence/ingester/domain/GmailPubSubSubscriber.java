@@ -1,4 +1,4 @@
-package com.inboxintelligence.ingester.external;
+package com.inboxintelligence.ingester.domain;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
@@ -8,7 +8,7 @@ import com.google.pubsub.v1.PubsubMessage;
 import com.inboxintelligence.ingester.common.GmailAPIProperties;
 import com.inboxintelligence.ingester.model.GmailEvent;
 import com.inboxintelligence.ingester.model.GmailMailbox;
-import com.inboxintelligence.ingester.service.GmailMailboxService;
+import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;

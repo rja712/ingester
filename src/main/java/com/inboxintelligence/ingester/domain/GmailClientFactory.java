@@ -1,4 +1,4 @@
-package com.inboxintelligence.ingester.internal;
+package com.inboxintelligence.ingester.domain;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;

@@ -1,4 +1,4 @@
-package com.inboxintelligence.ingester.external;
+package com.inboxintelligence.ingester.domain;
 
 import com.inboxintelligence.ingester.common.GmailAPIProperties;
 import lombok.RequiredArgsConstructor;
