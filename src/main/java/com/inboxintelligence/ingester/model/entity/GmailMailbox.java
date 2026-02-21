@@ -1,5 +1,6 @@
-package com.inboxintelligence.ingester.model;
+package com.inboxintelligence.ingester.model.entity;
 
+import com.inboxintelligence.ingester.model.SyncStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

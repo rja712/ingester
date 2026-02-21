@@ -2,7 +2,8 @@ package com.inboxintelligence.ingester.domain;
 
 
 import com.google.api.services.gmail.model.*;
-import com.inboxintelligence.ingester.model.GmailMailbox;
+import com.inboxintelligence.ingester.model.entity.GmailInbox;
+import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

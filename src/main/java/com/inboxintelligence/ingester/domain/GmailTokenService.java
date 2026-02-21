@@ -4,7 +4,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.services.gmail.model.WatchRequest;
 import com.google.api.services.gmail.model.WatchResponse;
 import com.inboxintelligence.ingester.common.GmailAPIProperties;
-import com.inboxintelligence.ingester.model.GmailMailbox;
+import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.model.SyncStatus;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
 import lombok.RequiredArgsConstructor;
