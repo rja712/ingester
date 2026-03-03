@@ -45,6 +45,7 @@ dependencies {
 	implementation 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
 	implementation 'org.apache.commons:commons-collections4:4.5.0'
+	implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.3.0'
 
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'

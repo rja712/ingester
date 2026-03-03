@@ -4,6 +4,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeToken
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.gmail.Gmail;
@@ -15,6 +16,7 @@ import com.inboxintelligence.ingester.common.GmailAPIProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
@@ -50,7 +52,17 @@ public class GmailClientFactory {
     }
 
     private Gmail create(GoogleCredentials credentials) {
-        return new Gmail.Builder(httpTransport, gsonFactory, new HttpCredentialsAdapter(credentials))
+
+        HttpCredentialsAdapter httpRequestInitializer = new HttpCredentialsAdapter(credentials) {
+            @Override
+            public void initialize(HttpRequest httpRequest) throws IOException {
+                super.initialize(httpRequest);
+                httpRequest.setConnectTimeout(5000);  // 5 seconds
+                httpRequest.setReadTimeout(10000);    // 10 seconds
+            }
+        };
+
+        return new Gmail.Builder(httpTransport, gsonFactory, httpRequestInitializer)
                 .setApplicationName(gmailAPIProperties.applicationName())
                 .build();
     }

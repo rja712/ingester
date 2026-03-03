@@ -1,11 +1,15 @@
 package com.inboxintelligence.ingester.domain;
 
 
+import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.*;
 import com.inboxintelligence.ingester.model.entity.EmailContent;
 import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.persistence.service.EmailContentService;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
+
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -85,7 +89,7 @@ public class GmailSyncService {
                     .setStartHistoryId(BigInteger.valueOf(gmailMailbox.getHistoryId()))
                     .setPageToken(pageToken);
 
-            var response = request.execute();
+            var response = executeHistoryRequest(request);
 
             if (response == null) {
                 log.error("Stopping: Gmail returned null response");
@@ -104,6 +108,29 @@ public class GmailSyncService {
             gmailMailbox.setHistoryId(latestHistoryId);
             gmailMailboxService.save(gmailMailbox);
 
+        }
+    }
+
+    @CircuitBreaker(name = "gmailBreaker")
+    @Retry(name = "gmailRetry")
+    private ListHistoryResponse executeHistoryRequest(Gmail.Users.History.List request) throws IOException {
+        try {
+            return request.execute();
+        } catch (com.google.api.client.googleapis.json.GoogleJsonResponseException ex) {
+
+            int status = ex.getStatusCode();
+
+            if (status == 404) {
+                log.error("Invalid historyId. Needs full resync.");
+                throw new IllegalStateException("INVALID_HISTORY_ID");
+            }
+
+            if (status >= 400 && status < 500 && status != 429) {
+                // Non-retryable client error
+                throw new IllegalArgumentException("Non-retryable Gmail error", ex);
+            }
+
+            throw ex; // retryable
         }
     }
 
@@ -146,11 +173,12 @@ public class GmailSyncService {
 
             var gmail = gmailClientFactory.createUsingRefreshToken(gmailMailbox.getRefreshToken());
 
-            var message = gmail.users()
+            var request = gmail.users()
                     .messages()
                     .get("me", messageId)
-                    .setFormat("full")
-                    .execute();
+                    .setFormat("full");
+
+            var message = getExecute(request);
 
             String subject = getHeader(message, "Subject");
             String from = getHeader(message, "From");
@@ -188,6 +216,12 @@ public class GmailSyncService {
             throw new RuntimeException(e);
         }
 
+    }
+
+    @CircuitBreaker(name = "gmailBreaker")
+    @Retry(name = "gmailRetry")
+    private Message getExecute(Gmail.Users.Messages.Get request) throws IOException {
+        return request.execute();
     }
 
     private String getHeader(Message message, String name) {
