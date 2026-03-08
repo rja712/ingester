@@ -1,14 +1,13 @@
 package com.inboxintelligence.ingester.domain;
 
-
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.*;
+import com.inboxintelligence.ingester.exception.RetryableGmailApiException;
 import com.inboxintelligence.ingester.model.entity.EmailContent;
 import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.persistence.service.EmailContentService;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
-
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,110 +33,122 @@ public class GmailSyncService {
     private final GmailClientFactory gmailClientFactory;
     private final GmailMailboxService gmailMailboxService;
     private final EmailContentService emailContentService;
+
     private final ConcurrentHashMap<String, ReentrantLock> mailboxLocks = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> mailboxMaxHistory = new ConcurrentHashMap<>();
 
-    public void triggerSyncJob(GmailMailbox gmailMailbox, Long eventHistoryId) throws IOException {
 
-        String mailboxEmailAddress = gmailMailbox.getEmailAddress();
+    public void triggerSyncJob(GmailMailbox mailbox, Long eventHistoryId) throws IOException {
 
-        mailboxMaxHistory.merge(mailboxEmailAddress, eventHistoryId, Math::max);
-        ReentrantLock lock = mailboxLocks.computeIfAbsent(mailboxEmailAddress, key -> new ReentrantLock());
+        String email = mailbox.getEmailAddress();
 
-        if (gmailMailbox.getHistoryId() > eventHistoryId) {
+        mailboxMaxHistory.merge(email, eventHistoryId, Math::max);
+
+        ReentrantLock lock = mailboxLocks.computeIfAbsent(email, k -> new ReentrantLock());
+
+        if (mailbox.getHistoryId() > eventHistoryId) {
             log.info("Ignoring stale Gmail event");
             return;
         }
 
         if (!lock.tryLock()) {
-            log.info("Sync already running for mailbox {}", mailboxEmailAddress);
+            log.info("Sync already running for {}", email);
             return;
         }
 
         try {
-            do {
-                Long lastHistoryIdSynced = gmailMailbox.getHistoryId();
-                Long latestMaxHistoryId = mailboxMaxHistory.getOrDefault(mailboxEmailAddress, lastHistoryIdSynced);
-
-                if (lastHistoryIdSynced >= latestMaxHistoryId){
-                    log.info("Ignoring stale Gmail event: {} {}", mailboxEmailAddress, lastHistoryIdSynced);
-                    break;
-                }
-                syncGmailMailbox(gmailMailbox);
-
-            } while (true);
-
+            runSyncLoop(mailbox);
         } finally {
             lock.unlock();
-            mailboxLocks.remove(mailboxEmailAddress, lock);
+            mailboxLocks.remove(email, lock);
         }
     }
 
 
-    public void syncGmailMailbox(GmailMailbox gmailMailbox) throws IOException {
+    private void runSyncLoop(GmailMailbox mailbox) throws IOException {
 
-        log.info("Triggering Sync Job: {}", gmailMailbox.getEmailAddress());
+        String email = mailbox.getEmailAddress();
 
-        Long latestHistoryId = null;
-        String pageToken = null;
-        var gmail = gmailClientFactory.createUsingRefreshToken(gmailMailbox.getRefreshToken());
+        while (true) {
 
-        do {
-            var request = gmail.users()
-                    .history()
-                    .list("me")
-                    .setStartHistoryId(BigInteger.valueOf(gmailMailbox.getHistoryId()))
-                    .setPageToken(pageToken);
+            long lastSynced = mailbox.getHistoryId();
+            long latestEvent = mailboxMaxHistory.getOrDefault(email, lastSynced);
 
-            var response = executeHistoryRequest(request);
-
-            if (response == null) {
-                log.error("Stopping: Gmail returned null response");
-                break;
+            if (lastSynced >= latestEvent) {
+                log.info("No new Gmail events {} {}", email, lastSynced);
+                return;
             }
 
-            processListHistoryResponse(gmailMailbox, response.getHistory());
+            syncGmailMailbox(mailbox);
+        }
+    }
+
+
+    public void syncGmailMailbox(GmailMailbox mailbox) throws IOException {
+
+        log.info("Syncing mailbox {}", mailbox.getEmailAddress());
+
+        Gmail gmail = gmailClientFactory.createUsingRefreshToken(mailbox.getRefreshToken());
+
+        String pageToken = null;
+        Long latestHistoryId = null;
+
+        do {
+
+            ListHistoryResponse response = fetchHistory(gmail, mailbox, pageToken);
+
+            if (response == null) {
+                log.error("Gmail returned null response");
+                return;
+            }
+
+            processHistory(gmail, mailbox, response.getHistory());
+
             pageToken = response.getNextPageToken();
             latestHistoryId = response.getHistoryId().longValue();
 
         } while (pageToken != null);
 
-        if (latestHistoryId != null) {
-
-            log.info("Setting latest history Id {}", latestHistoryId);
-            gmailMailbox.setHistoryId(latestHistoryId);
-            gmailMailboxService.save(gmailMailbox);
-
-        }
+        updateMailboxHistory(mailbox, latestHistoryId);
     }
 
-    @CircuitBreaker(name = "gmailBreaker")
+
+    private ListHistoryResponse fetchHistory(Gmail gmail, GmailMailbox mailbox, String pageToken) {
+
+        var request = gmail.users()
+                .history()
+                .list("me") // i think i should add retry there... correct???
+                .setStartHistoryId(BigInteger.valueOf(mailbox.getHistoryId()))
+                .setPageToken(pageToken);
+
+        return executeHistoryRequest(request);
+    }
+
+
     @Retry(name = "gmailRetry")
-    private ListHistoryResponse executeHistoryRequest(Gmail.Users.History.List request) throws IOException {
+    private ListHistoryResponse executeHistoryRequest(Gmail.Users.History.List request) {
+
         try {
             return request.execute();
-        } catch (com.google.api.client.googleapis.json.GoogleJsonResponseException ex) {
+        } catch (GoogleJsonResponseException ex) {
 
             int status = ex.getStatusCode();
 
-            if (status == 404) {
-                log.error("Invalid historyId. Needs full resync.");
-                throw new IllegalStateException("INVALID_HISTORY_ID");
+            if (status == 429 || status >= 500) {
+                throw new RetryableGmailApiException("Retrying executeHistoryRequest: Received " + status);
             }
 
-            if (status >= 400 && status < 500 && status != 429) {
-                // Non-retryable client error
-                throw new IllegalArgumentException("Non-retryable Gmail error", ex);
-            }
+            throw new IllegalArgumentException("Non retryable Gmail error", ex);
 
-            throw ex; // retryable
+        } catch (IOException e) {
+            throw new RetryableGmailApiException("Retrying executeHistoryRequest: " + e.getMessage());
         }
     }
 
-    private void processListHistoryResponse(GmailMailbox gmailMailbox, List<History> historyList) {
+
+    private void processHistory(Gmail gmail, GmailMailbox mailbox, List<History> historyList) {
 
         if (CollectionUtils.isEmpty(historyList)) {
-            log.error("Stopping: Gmail returned empty historyList");
             return;
         }
 
@@ -148,16 +159,16 @@ public class GmailSyncService {
             }
 
             if (!CollectionUtils.isEmpty(history.getMessagesAdded())) {
-                history.getMessagesAdded().forEach(historyMessageAdded -> processNewMessageAdded(gmailMailbox, historyMessageAdded));
+                history.getMessagesAdded()
+                        .forEach(msg -> processNewMessageAdded(gmail, mailbox, msg));
             }
 
-            if (!CollectionUtils.isEmpty(history.getMessagesDeleted())) {
-                history.getMessagesDeleted().forEach(historyMessageDeleted -> processMessagesDeleted(historyMessageDeleted, gmailMailbox));
-            }
+
         }
     }
 
-    private void processNewMessageAdded(GmailMailbox gmailMailbox, HistoryMessageAdded historyMessageAdded) {
+
+    private void processNewMessageAdded(Gmail gmail, GmailMailbox mailbox, HistoryMessageAdded historyMessageAdded) {
 
         if (historyMessageAdded == null || historyMessageAdded.getMessage() == null) {
             return;
@@ -165,32 +176,25 @@ public class GmailSyncService {
 
         String messageId = historyMessageAdded.getMessage().getId();
 
-        if (emailContentService.existsByGmailMailboxIdAndMessageId(gmailMailbox.getId(), messageId)) {
+        if (emailContentService.existsByGmailMailboxIdAndMessageId(mailbox.getId(), messageId)) {
             return;
         }
 
         try {
 
-            var gmail = gmailClientFactory.createUsingRefreshToken(gmailMailbox.getRefreshToken());
-
-            var request = gmail.users()
-                    .messages()
-                    .get("me", messageId)
-                    .setFormat("full");
-
-            var message = getExecute(request);
+            Message message = fetchMessage(gmail, messageId);
 
             String subject = getHeader(message, "Subject");
             String from = getHeader(message, "From");
             String to = getHeader(message, "To");
             String cc = getHeader(message, "Cc");
+
             String body = extractBody(message);
 
+            log.info("Email received {}: {} <from:{}> <to:{}>", messageId, subject, from, to);
 
-            log.info("Email received {}: {} <from: {}> <to: {}>", messageId, subject, from, to);
-
-            var newEmail = EmailContent.builder()
-                    .gmailMailboxId(gmailMailbox.getId())
+            EmailContent newEmail = EmailContent.builder()
+                    .gmailMailboxId(mailbox.getId())
                     .messageId(message.getId())
                     .threadId(message.getThreadId())
                     .parentMessageId(getHeader(message, "In-Reply-To"))
@@ -205,26 +209,44 @@ public class GmailSyncService {
                     .isProcessed(false)
                     .build();
 
-
             emailContentService.save(newEmail);
 
-            log.info("Email saved {}: {} <from: {}> <to: {}>", messageId, subject, from, to);
-
-
+            log.info("Email saved {}: {}", messageId, subject);
 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
     }
 
-    @CircuitBreaker(name = "gmailBreaker")
+
+    private Message fetchMessage(Gmail gmail, String messageId) {
+
+        var request = gmail.users()
+                .messages()
+                .get("me", messageId) // i think i should add retry there... correct???
+                .setFormat("full");
+
+        return executeMessageRequest(request);
+    }
+
+
     @Retry(name = "gmailRetry")
-    private Message getExecute(Gmail.Users.Messages.Get request) throws IOException {
-        return request.execute();
+    private Message executeMessageRequest(Gmail.Users.Messages.Get request) {
+
+        try {
+            return request.execute();
+        } catch (IOException e) {
+            throw new RetryableGmailApiException("Retrying message fetch: " + e.getMessage());
+        }
     }
+
+
 
     private String getHeader(Message message, String name) {
+
+        if (message.getPayload() == null || message.getPayload().getHeaders() == null) {
+            return null;
+        }
 
         return message.getPayload()
                 .getHeaders()
@@ -240,6 +262,10 @@ public class GmailSyncService {
 
         var payload = message.getPayload();
 
+        if (payload == null) {
+            return null;
+        }
+
         if (payload.getParts() == null) {
             return decodeBase64String(payload.getBody().getData());
         }
@@ -251,8 +277,8 @@ public class GmailSyncService {
             }
         }
 
-        // fallback to html
         for (var part : payload.getParts()) {
+
             if ("text/html".equalsIgnoreCase(part.getMimeType())) {
                 return decodeBase64String(part.getBody().getData());
             }
@@ -260,6 +286,7 @@ public class GmailSyncService {
 
         return null;
     }
+
 
     private LocalDateTime parseInternalDate(Message message) {
 
@@ -273,10 +300,15 @@ public class GmailSyncService {
     }
 
 
+    private void updateMailboxHistory(GmailMailbox mailbox, Long historyId) {
 
+        if (historyId == null) {
+            return;
+        }
 
-    private void processMessagesDeleted(HistoryMessageDeleted historyMessageDeleted, GmailMailbox gmailMailbox) {
-        //add Code
+        log.info("Updating historyId {}", historyId);
 
+        mailbox.setHistoryId(historyId);
+        gmailMailboxService.save(mailbox);
     }
 }
