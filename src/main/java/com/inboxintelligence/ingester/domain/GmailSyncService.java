@@ -1,23 +1,26 @@
 package com.inboxintelligence.ingester.domain;
 
 import com.google.api.services.gmail.Gmail;
-import com.google.api.services.gmail.model.History;
-import com.google.api.services.gmail.model.HistoryMessageAdded;
-import com.google.api.services.gmail.model.ListHistoryResponse;
-import com.google.api.services.gmail.model.Message;
+import com.google.api.services.gmail.model.*;
 import com.inboxintelligence.ingester.model.entity.EmailContent;
 import com.inboxintelligence.ingester.model.entity.GmailMailbox;
+import com.inboxintelligence.ingester.outbound.GmailApiClient;
+import com.inboxintelligence.ingester.domain.GmailClientFactory;
 import com.inboxintelligence.ingester.persistence.service.EmailContentService;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
+
+import static com.inboxintelligence.ingester.utils.Base64Utils.decodeBase64Bytes;
 
 /**
  * Orchestrates Gmail mailbox synchronisation.
@@ -26,8 +29,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * heavy lifting to focused collaborators:
  * <ul>
  *   <li>{@link GmailApiClient} — Gmail API calls with retry</li>
- *   <li>{@link MimeContentExtractor} — MIME tree parsing</li>
- *   <li>{@link AttachmentStorageService} — attachment download &amp; storage</li>
+ *   <li>{@link GmailMimeContentExtractor} — MIME tree parsing</li>
+ *   <li>{@link GmailContentStorageService} — attachment persistence</li>
  * </ul>
  */
 @Service
@@ -37,8 +40,8 @@ public class GmailSyncService {
 
     private final GmailClientFactory gmailClientFactory;
     private final GmailApiClient gmailApiClient;
-    private final MimeContentExtractor mimeContentExtractor;
-    private final AttachmentStorageService attachmentStorageService;
+    private final GmailMimeContentExtractor gmailMimeContentExtractor;
+    private final GmailContentStorageService gmailContentStorageService;
     private final GmailMailboxService gmailMailboxService;
     private final EmailContentService emailContentService;
 
@@ -158,13 +161,13 @@ public class GmailSyncService {
 
             Message message = gmailApiClient.fetchMessage(gmail, messageId);
 
-            String subject = mimeContentExtractor.getHeader(message, "Subject");
-            String from = mimeContentExtractor.getHeader(message, "From");
-            String to = mimeContentExtractor.getHeader(message, "To");
-            String cc = mimeContentExtractor.getHeader(message, "Cc");
+            String subject = gmailMimeContentExtractor.getHeader(message, "Subject");
+            String from = gmailMimeContentExtractor.getHeader(message, "From");
+            String to = gmailMimeContentExtractor.getHeader(message, "To");
+            String cc = gmailMimeContentExtractor.getHeader(message, "Cc");
 
-            MimeContentExtractor.ExtractedContent extracted =
-                    mimeContentExtractor.extract(message.getPayload());
+            GmailMimeContentExtractor.ExtractedContent extracted =
+                    gmailMimeContentExtractor.extract(message.getPayload());
 
             log.info("Email received {}: {} <from:{}> <to:{}>", messageId, subject, from, to);
 
@@ -172,7 +175,7 @@ public class GmailSyncService {
                     .gmailMailboxId(mailbox.getId())
                     .messageId(message.getId())
                     .threadId(message.getThreadId())
-                    .parentMessageId(mimeContentExtractor.getHeader(message, "In-Reply-To"))
+                    .parentMessageId(gmailMimeContentExtractor.getHeader(message, "In-Reply-To"))
                     .rawMessage(message.toPrettyString())
                     .subject(subject)
                     .fromAddress(from)
@@ -180,8 +183,8 @@ public class GmailSyncService {
                     .ccAddress(cc)
                     .body(extracted.textBody())
                     .bodyHtml(extracted.htmlBody())
-                    .sentAt(mimeContentExtractor.parseInternalDate(message))
-                    .receivedAt(mimeContentExtractor.parseInternalDate(message))
+                    .sentAt(gmailMimeContentExtractor.parseInternalDate(message))
+                    .receivedAt(gmailMimeContentExtractor.parseInternalDate(message))
                     .isProcessed(false)
                     .build();
 
@@ -189,12 +192,92 @@ public class GmailSyncService {
 
             log.info("Email saved {}: {}", messageId, subject);
 
-            attachmentStorageService.processAttachments(
-                    gmail, mailbox.getId(), savedEmail, messageId, extracted.attachmentParts());
+            List<GmailContentStorageService.ResolvedAttachment> resolvedAttachments =
+                    resolveAttachments(gmail, messageId, extracted.attachmentParts());
+
+            gmailContentStorageService.processAttachments(
+                    mailbox.getId(), savedEmail, messageId, resolvedAttachments);
 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+
+    private List<GmailContentStorageService.ResolvedAttachment> resolveAttachments(
+            Gmail gmail, String messageId, List<MessagePart> attachmentParts) {
+
+        if (CollectionUtils.isEmpty(attachmentParts)) {
+            return List.of();
+        }
+
+        List<GmailContentStorageService.ResolvedAttachment> resolved = new ArrayList<>();
+
+        for (MessagePart part : attachmentParts) {
+            try {
+                byte[] data = fetchAttachmentData(gmail, messageId, part);
+
+                if (data == null || data.length == 0) {
+                    log.warn("Empty attachment data for '{}' in message {}", part.getFilename(), messageId);
+                    continue;
+                }
+
+                String fileName = StringUtils.hasText(part.getFilename())
+                        ? part.getFilename()
+                        : "unnamed_" + System.currentTimeMillis();
+
+                String attachmentId = (part.getBody() != null) ? part.getBody().getAttachmentId() : null;
+                long sizeInBytes = (part.getBody() != null && part.getBody().getSize() != null)
+                        ? part.getBody().getSize()
+                        : data.length;
+
+                resolved.add(new GmailContentStorageService.ResolvedAttachment(
+                        fileName, part.getMimeType(), attachmentId, sizeInBytes, data, isInlinePart(part)));
+
+            } catch (Exception e) {
+                log.error("Failed to fetch attachment '{}' for message {}: {}",
+                        part.getFilename(), messageId, e.getMessage());
+            }
+        }
+
+        return resolved;
+    }
+
+    private byte[] fetchAttachmentData(Gmail gmail, String messageId, MessagePart part) {
+
+        MessagePartBody body = part.getBody();
+
+        if (body == null) {
+            return null;
+        }
+
+        if (StringUtils.hasText(body.getData())) {
+            return decodeBase64Bytes(body.getData());
+        }
+
+        if (StringUtils.hasText(body.getAttachmentId())) {
+            MessagePartBody attachmentBody = gmailApiClient.fetchAttachment(gmail, messageId, body.getAttachmentId());
+            if (attachmentBody != null && StringUtils.hasText(attachmentBody.getData())) {
+                return decodeBase64Bytes(attachmentBody.getData());
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isInlinePart(MessagePart part) {
+
+        if (part.getHeaders() == null) {
+            return false;
+        }
+
+        for (MessagePartHeader header : part.getHeaders()) {
+            if ("Content-Disposition".equalsIgnoreCase(header.getName())) {
+                return header.getValue().toLowerCase().startsWith("inline");
+            }
+        }
+
+        return false;
     }
 
 

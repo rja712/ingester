@@ -30,7 +30,7 @@ import static com.inboxintelligence.ingester.utils.Base64Utils.decodeBase64Strin
  * </ul>
  */
 @Component
-public class MimeContentExtractor {
+public class GmailMimeContentExtractor {
 
     public ExtractedContent extract(MessagePart payload) {
 

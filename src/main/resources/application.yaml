@@ -34,10 +34,6 @@ resilience4j:
           - java.lang.RuntimeException
           - com.google.api.client.googleapis.json.GoogleJsonResponseException
 
-
-attachment-storage:
-  base-path: ${ATTACHMENT_STORAGE_PATH:./data/attachments}
-
 gmail-api:
   application-name: "InboxIntelligence"
   client-id: ${GOOGLE_CLIENT_ID}
@@ -48,6 +44,9 @@ gmail-api:
   pubsub-topic: "projects/inboxintelligence-01/topics/gmail-events"
   project-id: "inboxintelligence-01"
   pubsub-subscription-id: "gmail-events-sub"
+
+email-content-storage:
+  attachment-path: "/data/email/attachments"
 
 
 

@@ -1,4 +1,4 @@
-package com.inboxintelligence.ingester.domain;
+package com.inboxintelligence.ingester.outbound;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.gmail.Gmail;
