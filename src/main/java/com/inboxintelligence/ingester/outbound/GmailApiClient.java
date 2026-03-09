@@ -2,9 +2,7 @@ package com.inboxintelligence.ingester.outbound;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.gmail.Gmail;
-import com.google.api.services.gmail.model.ListHistoryResponse;
-import com.google.api.services.gmail.model.Message;
-import com.google.api.services.gmail.model.MessagePartBody;
+import com.google.api.services.gmail.model.*;
 import com.inboxintelligence.ingester.exception.RetryableGmailApiException;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.List;
 
 /**
  * Low-level Gmail API client.
@@ -71,6 +70,21 @@ public class GmailApiClient {
             throw handleGoogleJsonException(ex, "fetchAttachment");
         } catch (IOException e) {
             throw new RetryableGmailApiException("Retrying fetchAttachment: " + e.getMessage());
+        }
+    }
+
+    @Retry(name = "gmailRetry")
+    public WatchResponse watchMailbox(Gmail gmail, String topic, List<String> labelIds) {
+
+        try {
+            var watchRequest = new WatchRequest()
+                    .setTopicName(topic)
+                    .setLabelIds(labelIds);
+            return gmail.users().watch("me", watchRequest).execute();
+        } catch (GoogleJsonResponseException ex) {
+            throw handleGoogleJsonException(ex, "watchMailbox");
+        } catch (IOException e) {
+            throw new RetryableGmailApiException("Retrying watchMailbox: " + e.getMessage());
         }
     }
 

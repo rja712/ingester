@@ -54,7 +54,7 @@ public class EmailAttachment {
 
     @Column(name = "storage_provider", nullable = false, length = 8)
     @Builder.Default
-    private String storageProvider = "S3";
+    private String storageProvider = "LOCAL";
 
     // Processing
     @Column(name = "is_inline", nullable = false)

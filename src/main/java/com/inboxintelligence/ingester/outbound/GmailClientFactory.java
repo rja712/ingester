@@ -1,4 +1,4 @@
-package com.inboxintelligence.ingester.domain;
+package com.inboxintelligence.ingester.outbound;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeTokenRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
@@ -12,7 +12,7 @@ import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.UserCredentials;
-import com.inboxintelligence.ingester.common.GmailAPIProperties;
+import com.inboxintelligence.ingester.config.GmailApiProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -25,12 +25,12 @@ import java.util.Date;
 @Slf4j
 public class GmailClientFactory {
 
-    private final GmailAPIProperties gmailAPIProperties;
+    private final GmailApiProperties gmailApiProperties;
     private final NetHttpTransport httpTransport;
     private final GsonFactory gsonFactory;
 
-    public GmailClientFactory(GmailAPIProperties gmailAPIProperties) throws Exception {
-        this.gmailAPIProperties = gmailAPIProperties;
+    public GmailClientFactory(GmailApiProperties gmailApiProperties) throws Exception {
+        this.gmailApiProperties = gmailApiProperties;
         this.httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         this.gsonFactory = GsonFactory.getDefaultInstance();
     }
@@ -44,8 +44,8 @@ public class GmailClientFactory {
 
     public Gmail createUsingRefreshToken(String refreshToken) {
         var credentials = UserCredentials.newBuilder()
-                .setClientId(gmailAPIProperties.clientId())
-                .setClientSecret(gmailAPIProperties.clientSecret())
+                .setClientId(gmailApiProperties.clientId())
+                .setClientSecret(gmailApiProperties.clientSecret())
                 .setRefreshToken(refreshToken)
                 .build();
         return this.create(credentials);
@@ -63,7 +63,7 @@ public class GmailClientFactory {
         };
 
         return new Gmail.Builder(httpTransport, gsonFactory, httpRequestInitializer)
-                .setApplicationName(gmailAPIProperties.applicationName())
+                .setApplicationName(gmailApiProperties.applicationName())
                 .build();
     }
 
@@ -71,17 +71,17 @@ public class GmailClientFactory {
         return new GoogleAuthorizationCodeTokenRequest(
                 httpTransport,
                 gsonFactory,
-                gmailAPIProperties.tokenUrl(),
-                gmailAPIProperties.clientId(),
-                gmailAPIProperties.clientSecret(),
+                gmailApiProperties.tokenUrl(),
+                gmailApiProperties.clientId(),
+                gmailApiProperties.clientSecret(),
                 authorizationCode,
-                gmailAPIProperties.redirectUri()
+                gmailApiProperties.redirectUri()
         );
     }
 
     public GoogleIdTokenVerifier createIdTokenVerifier() {
         return new GoogleIdTokenVerifier.Builder(httpTransport, gsonFactory)
-                .setAudience(Collections.singletonList(gmailAPIProperties.clientId()))
+                .setAudience(Collections.singletonList(gmailApiProperties.clientId()))
                 .build();
     }
 

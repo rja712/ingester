@@ -16,10 +16,10 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/gmail-api")
 @RequiredArgsConstructor
-public class GmailAPIController {
+public class GmailApiController {
 
-    public final GmailOAuthLoginService gmailOAuthLoginService;
-    public final GmailTokenService gmailTokenService;
+    private final GmailOAuthLoginService gmailOAuthLoginService;
+    private final GmailTokenService gmailTokenService;
 
     @GetMapping("/login")
     public void invokeOAuthRedirectURI(HttpServletResponse response) {

@@ -31,8 +31,7 @@ resilience4j:
         exponential-backoff-multiplier: 2
         randomized-wait-factor: 0.5
         retry-exceptions:
-          - java.lang.RuntimeException
-          - com.google.api.client.googleapis.json.GoogleJsonResponseException
+          - com.inboxintelligence.ingester.exception.RetryableGmailApiException
 
 gmail-api:
   application-name: "InboxIntelligence"
@@ -46,7 +45,7 @@ gmail-api:
   pubsub-subscription-id: "gmail-events-sub"
 
 email-content-storage:
-  attachment-path: "/data/email/attachments"
+  attachment-path: ${ATTACHMENT_STORAGE_PATH:./data/email/attachments}
 
 
 

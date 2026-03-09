@@ -9,7 +9,7 @@ public class JsonUtils {
 
     private static final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
-    private static String toPrettyJson(Object object) throws Exception {
+    public static String toPrettyJson(Object object) throws Exception {
         return objectMapper.writeValueAsString(object);
     }
 

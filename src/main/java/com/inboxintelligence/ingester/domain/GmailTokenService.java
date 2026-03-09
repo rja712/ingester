@@ -1,12 +1,12 @@
 package com.inboxintelligence.ingester.domain;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
-import com.google.api.services.gmail.model.WatchRequest;
 import com.google.api.services.gmail.model.WatchResponse;
-import com.inboxintelligence.ingester.common.GmailAPIProperties;
+import com.inboxintelligence.ingester.config.GmailApiProperties;
 import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.model.SyncStatus;
-import com.inboxintelligence.ingester.domain.GmailClientFactory;
+import com.inboxintelligence.ingester.outbound.GmailApiClient;
+import com.inboxintelligence.ingester.outbound.GmailClientFactory;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,10 +20,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GmailTokenService {
 
-
-    private final GmailAPIProperties gmailAPIProperties;
+    private final GmailApiProperties gmailApiProperties;
     private final GmailMailboxService gmailMailboxService;
     private final GmailClientFactory gmailClientFactory;
+    private final GmailApiClient gmailApiClient;
 
     public void processTokenCallbackCode(String authorizationCode) {
 
@@ -61,15 +61,13 @@ public class GmailTokenService {
     }
 
 
-    private WatchResponse startMailboxWatch(GoogleTokenResponse tokenResponse) throws Exception {
+    private WatchResponse startMailboxWatch(GoogleTokenResponse tokenResponse) {
 
         log.info("Starting Gmail mailbox watch (Pub/Sub)");
 
         var gmail = gmailClientFactory.createUsingGoogleTokenResponse(tokenResponse);
-        var watchRequest = new WatchRequest()
-                .setTopicName(gmailAPIProperties.pubsubTopic())
-                .setLabelIds(List.of("INBOX"));
-        var response = gmail.users().watch("me", watchRequest).execute();
+        var response = gmailApiClient.watchMailbox(
+                gmail, gmailApiProperties.pubsubTopic(), List.of("INBOX"));
 
         log.info("Mailbox watch started. historyId={}, expiresAt={}", response.getHistoryId(), response.getExpiration());
 

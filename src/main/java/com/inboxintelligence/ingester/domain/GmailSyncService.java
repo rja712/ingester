@@ -5,7 +5,7 @@ import com.google.api.services.gmail.model.*;
 import com.inboxintelligence.ingester.model.entity.EmailContent;
 import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.outbound.GmailApiClient;
-import com.inboxintelligence.ingester.domain.GmailClientFactory;
+import com.inboxintelligence.ingester.outbound.GmailClientFactory;
 import com.inboxintelligence.ingester.persistence.service.EmailContentService;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
 import lombok.RequiredArgsConstructor;
@@ -30,7 +30,7 @@ import static com.inboxintelligence.ingester.utils.Base64Utils.decodeBase64Bytes
  * <ul>
  *   <li>{@link GmailApiClient} — Gmail API calls with retry</li>
  *   <li>{@link GmailMimeContentExtractor} — MIME tree parsing</li>
- *   <li>{@link GmailContentStorageService} — attachment persistence</li>
+ *   <li>{@link EmailContentStorageService} — attachment persistence</li>
  * </ul>
  */
 @Service
@@ -41,7 +41,7 @@ public class GmailSyncService {
     private final GmailClientFactory gmailClientFactory;
     private final GmailApiClient gmailApiClient;
     private final GmailMimeContentExtractor gmailMimeContentExtractor;
-    private final GmailContentStorageService gmailContentStorageService;
+    private final EmailContentStorageService gmailContentStorageService;
     private final GmailMailboxService gmailMailboxService;
     private final EmailContentService emailContentService;
 
@@ -192,7 +192,7 @@ public class GmailSyncService {
 
             log.info("Email saved {}: {}", messageId, subject);
 
-            List<GmailContentStorageService.ResolvedAttachment> resolvedAttachments =
+            List<EmailContentStorageService.ResolvedAttachment> resolvedAttachments =
                     resolveAttachments(gmail, messageId, extracted.attachmentParts());
 
             gmailContentStorageService.processAttachments(
@@ -204,14 +204,14 @@ public class GmailSyncService {
     }
 
 
-    private List<GmailContentStorageService.ResolvedAttachment> resolveAttachments(
+    private List<EmailContentStorageService.ResolvedAttachment> resolveAttachments(
             Gmail gmail, String messageId, List<MessagePart> attachmentParts) {
 
         if (CollectionUtils.isEmpty(attachmentParts)) {
             return List.of();
         }
 
-        List<GmailContentStorageService.ResolvedAttachment> resolved = new ArrayList<>();
+        List<EmailContentStorageService.ResolvedAttachment> resolved = new ArrayList<>();
 
         for (MessagePart part : attachmentParts) {
             try {
@@ -231,7 +231,7 @@ public class GmailSyncService {
                         ? part.getBody().getSize()
                         : data.length;
 
-                resolved.add(new GmailContentStorageService.ResolvedAttachment(
+                resolved.add(new EmailContentStorageService.ResolvedAttachment(
                         fileName, part.getMimeType(), attachmentId, sizeInBytes, data, isInlinePart(part)));
 
             } catch (Exception e) {
