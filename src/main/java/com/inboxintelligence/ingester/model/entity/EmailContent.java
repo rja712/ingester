@@ -44,9 +44,6 @@ public class EmailContent {
     @Column(name = "parent_message_id", length = 1024)
     private String parentMessageId;
 
-    @Column(name = "raw_message_storage_path", length = 1024)
-    private String rawMessageStoragePath;
-
     // Content
     @Column(columnDefinition = "TEXT")
     private String subject;
@@ -60,11 +57,18 @@ public class EmailContent {
     @Column(name = "cc_address", columnDefinition = "TEXT")
     private String ccAddress;
 
-    @Column(name = "body_storage_path", length = 1024)
-    private String bodyStoragePath;
+    // Storage paths (file content stored on disk, not in DB)
+    @Column(name = "raw_message_path", length = 1024)
+    private String rawMessagePath;
 
-    @Column(name = "body_html_storage_path", length = 1024)
-    private String bodyHtmlStoragePath;
+    @Column(name = "body_content_path", length = 1024)
+    private String bodyContentPath;
+
+    @Column(name = "body_html_content_path", length = 1024)
+    private String bodyHtmlContentPath;
+
+    @Column(name = "processed_content_path", length = 1024)
+    private String processedContentPath;
 
     @Column(name = "sent_at")
     private LocalDateTime sentAt;

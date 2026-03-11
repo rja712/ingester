@@ -2,6 +2,8 @@ package com.inboxintelligence.ingester.domain;
 
 import com.google.api.services.gmail.Gmail;
 import com.google.api.services.gmail.model.*;
+import com.inboxintelligence.ingester.model.ResolvedAttachment;
+import com.inboxintelligence.ingester.model.StoredEmailContentPaths;
 import com.inboxintelligence.ingester.model.entity.EmailContent;
 import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.outbound.GmailApiClient;
@@ -171,7 +173,7 @@ public class GmailSyncService {
 
             log.info("Email received {}: {} <from:{}> <to:{}>", messageId, subject, from, to);
 
-            EmailContentStorageService.StoredEmailContentPaths contentPaths =
+            StoredEmailContentPaths contentPaths =
                     gmailContentStorageService.storeEmailContent(
                             mailbox.getId(), messageId,
                             message.toPrettyString(), extracted.textBody(), extracted.htmlBody());
@@ -181,13 +183,13 @@ public class GmailSyncService {
                     .messageId(message.getId())
                     .threadId(message.getThreadId())
                     .parentMessageId(gmailMimeContentExtractor.getHeader(message, "In-Reply-To"))
-                    .rawMessageStoragePath(contentPaths.rawMessageStoragePath())
+                    .rawMessagePath(contentPaths.rawMessagePath())
                     .subject(subject)
                     .fromAddress(from)
                     .toAddress(to)
                     .ccAddress(cc)
-                    .bodyStoragePath(contentPaths.bodyStoragePath())
-                    .bodyHtmlStoragePath(contentPaths.bodyHtmlStoragePath())
+                    .bodyContentPath(contentPaths.bodyContentPath())
+                    .bodyHtmlContentPath(contentPaths.bodyHtmlContentPath())
                     .sentAt(gmailMimeContentExtractor.parseInternalDate(message))
                     .receivedAt(gmailMimeContentExtractor.parseInternalDate(message))
                     .isProcessed(false)
@@ -197,7 +199,7 @@ public class GmailSyncService {
 
             log.info("Email saved {}: {}", messageId, subject);
 
-            List<EmailContentStorageService.ResolvedAttachment> resolvedAttachments =
+            List<ResolvedAttachment> resolvedAttachments =
                     resolveAttachments(gmail, messageId, extracted.attachmentParts());
 
             gmailContentStorageService.processAttachments(
@@ -209,14 +211,14 @@ public class GmailSyncService {
     }
 
 
-    private List<EmailContentStorageService.ResolvedAttachment> resolveAttachments(
+    private List<ResolvedAttachment> resolveAttachments(
             Gmail gmail, String messageId, List<MessagePart> attachmentParts) {
 
         if (CollectionUtils.isEmpty(attachmentParts)) {
             return List.of();
         }
 
-        List<EmailContentStorageService.ResolvedAttachment> resolved = new ArrayList<>();
+        List<ResolvedAttachment> resolved = new ArrayList<>();
 
         for (MessagePart part : attachmentParts) {
             try {
@@ -236,7 +238,7 @@ public class GmailSyncService {
                         ? part.getBody().getSize()
                         : data.length;
 
-                resolved.add(new EmailContentStorageService.ResolvedAttachment(
+                resolved.add(new ResolvedAttachment(
                         fileName, part.getMimeType(), attachmentId, sizeInBytes, data, isInlinePart(part)));
 
             } catch (Exception e) {

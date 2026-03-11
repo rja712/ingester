@@ -8,19 +8,22 @@ CREATE TABLE email_content (
     message_id VARCHAR(1024) NOT NULL,
     thread_id VARCHAR(1024) NOT NULL,
     parent_message_id VARCHAR(1024) DEFAULT NULL,
-    raw_message TEXT,
 
     -- content
     subject TEXT,
     from_address TEXT,
     to_address TEXT,
     cc_address TEXT,
-    body TEXT,
 
     sent_at TIMESTAMP,
     received_at TIMESTAMP,
 
     is_processed BOOLEAN NOT NULL DEFAULT FALSE,
+
+    raw_message_path VARCHAR(1024),
+    body_content_path VARCHAR(1024),
+    body_html_content_path VARCHAR(1024),
+    processed_content_path VARCHAR(1024),
 
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
