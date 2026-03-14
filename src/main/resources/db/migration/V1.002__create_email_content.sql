@@ -18,7 +18,7 @@ CREATE TABLE email_content (
     sent_at TIMESTAMP,
     received_at TIMESTAMP,
 
-    is_processed BOOLEAN NOT NULL DEFAULT FALSE,
+    processed_status VARCHAR(32) NOT NULL DEFAULT 'RECEIVED',
 
     raw_message_path VARCHAR(1024),
     body_content_path VARCHAR(1024),

@@ -1,13 +1,12 @@
 package com.inboxintelligence.ingester.inbound;
 
-import com.inboxintelligence.ingester.domain.GmailSyncService;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import com.inboxintelligence.ingester.config.GmailApiProperties;
+import com.inboxintelligence.ingester.domain.GmailSyncService;
 import com.inboxintelligence.ingester.model.GmailEvent;
 import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
@@ -20,6 +19,9 @@ import org.springframework.stereotype.Component;
 
 import static com.inboxintelligence.ingester.model.SyncStatus.DISCONNECTED;
 
+/**
+ * Listens on Google Cloud Pub/Sub for Gmail push notifications and triggers mailbox sync.
+ */
 @Slf4j
 @Component
 @Profile("!test")
@@ -76,7 +78,7 @@ public class GmailPubSubSubscriber {
 
         } catch (Exception e) {
 
-            if (gmailMailbox != null && e.toString().contains("invalid_grant")) {
+            if (gmailMailbox != null && hasInvalidGrant(e)) {
 
                 log.error("Refresh token revoked for {}", gmailMailbox.getEmailAddress());
 
@@ -91,5 +93,18 @@ public class GmailPubSubSubscriber {
             consumer.nack();
 
         }
+    }
+
+    private boolean hasInvalidGrant(Throwable throwable) {
+
+        while (throwable != null) {
+            String message = throwable.getMessage();
+            if (message != null && message.contains("invalid_grant")) {
+                return true;
+            }
+            throwable = throwable.getCause();
+        }
+
+        return false;
     }
 }

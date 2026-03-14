@@ -47,7 +47,3 @@ gmail-api:
 email-storage:
   provider: ${EMAIL_STORAGE_PROVIDER:LOCAL}
   local-base-path: ${EMAIL_STORAGE_LOCAL_BASE_PATH:./data}
-
-
-
-

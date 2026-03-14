@@ -8,6 +8,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
+/**
+ * Persistence service for Gmail mailbox entities.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

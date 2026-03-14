@@ -5,6 +5,7 @@ import com.google.api.services.gmail.model.Message;
 import com.google.api.services.gmail.model.MessagePart;
 import com.google.api.services.gmail.model.MessagePartBody;
 import com.google.api.services.gmail.model.MessagePartHeader;
+import com.inboxintelligence.ingester.model.ProcessedStatus;
 import com.inboxintelligence.ingester.model.entity.EmailAttachment;
 import com.inboxintelligence.ingester.model.entity.EmailContent;
 import com.inboxintelligence.ingester.outbound.GmailApiClient;
@@ -17,7 +18,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.io.IOException;
+import java.time.Instant;
 
 import static com.inboxintelligence.ingester.utils.Base64Util.decodeBase64Bytes;
 
@@ -39,113 +41,150 @@ public class GmailMessageProcessingService {
         try {
 
             String messageId = message.getId();
+            log.debug("Processing message {} for mailbox {}", messageId, mailboxId);
 
             MessagePart messagePartPayload = message.getPayload();
-            LocalDateTime messageDate = MimeContentUtil.parseInternalDate(message);
+            Instant messageDate = MimeContentUtil.parseInternalDate(message);
 
-            var provider = storageProviderFactory.getProvider();
-            String rawMessagePath = provider.storeRawMessage(mailboxId, messageId, message.toPrettyString());
-            String bodyContentPath = provider.storeTextBody(mailboxId, messageId, MimeContentUtil.extractTextBody(messagePartPayload));
-            String bodyHtmlContentPath = provider.storeHtmlBody(mailboxId, messageId, MimeContentUtil.extractHtmlBody(messagePartPayload));
+            var savedEmail = saveEmailContentEntity(mailboxId, message, messageId, messageDate);
 
-            var emailContent = EmailContent.builder()
-                    .gmailMailboxId(mailboxId)
-                    .messageId(messageId)
-                    .threadId(message.getThreadId())
-                    .parentMessageId(MimeContentUtil.getHeader(message, "In-Reply-To"))
-                    .rawMessagePath(rawMessagePath)
-                    .subject(MimeContentUtil.getHeader(message, "Subject"))
-                    .fromAddress(MimeContentUtil.getHeader(message, "From"))
-                    .toAddress(MimeContentUtil.getHeader(message, "To"))
-                    .ccAddress(MimeContentUtil.getHeader(message, "Cc"))
-                    .bodyContentPath(bodyContentPath)
-                    .bodyHtmlContentPath(bodyHtmlContentPath)
-                    .sentAt(messageDate)
-                    .receivedAt(messageDate)
-                    .isProcessed(false)
-                    .build();
+            saveEmailContentInStorage(mailboxId, message, savedEmail, messageId, messagePartPayload);
 
-            var savedEmail = emailContentService.save(emailContent);
-            log.info("Email saved {}: {}", messageId, MimeContentUtil.getHeader(message, "Subject"));
-
-            var list = MimeContentUtil.extractAttachmentMessageParts(messagePartPayload);
-            list.forEach(part -> processAttachmentMessageParts(gmail, savedEmail, mailboxId, messageId, part));
+            saveEmailAttachment(gmail, mailboxId, messagePartPayload, savedEmail, messageId);
 
         } catch (Exception e) {
+            log.error("Failed to process message {} for mailbox {}", message.getId(), mailboxId, e);
             throw new RuntimeException(e);
         }
+    }
+
+    private EmailContent saveEmailContentEntity(Long mailboxId, Message message, String messageId, Instant messageDate) {
+
+        // Step 1: Save email metadata to DB with status RECEIVED
+        var emailContent = EmailContent.builder()
+                .gmailMailboxId(mailboxId)
+                .messageId(messageId)
+                .threadId(message.getThreadId())
+                .parentMessageId(MimeContentUtil.getHeader(message, "In-Reply-To"))
+                .subject(MimeContentUtil.getHeader(message, "Subject"))
+                .fromAddress(MimeContentUtil.getHeader(message, "From"))
+                .toAddress(MimeContentUtil.getHeader(message, "To"))
+                .ccAddress(MimeContentUtil.getHeader(message, "Cc"))
+                .sentAt(messageDate)
+                .receivedAt(messageDate)
+                .processedStatus(ProcessedStatus.RECEIVED)
+                .build();
+
+        var savedEmail = emailContentService.save(emailContent);
+        log.info("Email saved {}: {}", messageId, MimeContentUtil.getHeader(message, "Subject"));
+        return savedEmail;
+
+    }
+
+    private void saveEmailContentInStorage(Long mailboxId, Message message, EmailContent savedEmail, String messageId, MessagePart messagePartPayload) throws IOException {
+
+        // Step 2: Store content to storage and update paths + status CONTENT_SAVED
+        var provider = storageProviderFactory.getProvider();
+        savedEmail.setRawMessagePath(provider.storeRawMessage(mailboxId, messageId, message.toPrettyString()));
+        savedEmail.setBodyContentPath(provider.storeTextBody(mailboxId, messageId, MimeContentUtil.extractTextBody(messagePartPayload)));
+        savedEmail.setBodyHtmlContentPath(provider.storeHtmlBody(mailboxId, messageId, MimeContentUtil.extractHtmlBody(messagePartPayload)));
+        savedEmail.setProcessedStatus(ProcessedStatus.CONTENT_SAVED);
+
+        emailContentService.save(savedEmail);
+        log.info("Content saved for message {}", messageId);
+
+    }
+
+
+    private void saveEmailAttachment(Gmail gmail, Long mailboxId, MessagePart messagePartPayload, EmailContent savedEmail, String messageId) {
+
+        // Step 3: Process attachments and update status to ATTACHMENT_SAVED
+        var list = MimeContentUtil.extractAttachmentMessageParts(messagePartPayload);
+        log.debug("Found {} attachments for message {}", list.size(), messageId);
+        list.forEach(part -> processAttachmentMessageParts(gmail, savedEmail, mailboxId, messageId, part));
+        savedEmail.setProcessedStatus(ProcessedStatus.ATTACHMENT_SAVED);
+
+        emailContentService.save(savedEmail);
+        log.info("Attachments saved for message {}", messageId);
     }
 
     private void processAttachmentMessageParts(Gmail gmail, EmailContent savedEmail, Long mailboxId, String messageId, MessagePart part) {
 
         try {
+
             byte[] data = fetchAttachmentData(gmail, messageId, part);
 
-            if (data == null || data.length == 0) {
-                log.warn("Empty attachment data for '{}' in message {}", part.getFilename(), messageId);
-                return;
+            if (data != null) {
+
+                EmailStorageProvider provider = storageProviderFactory.getProvider();
+                String fileName = StringUtils.hasText(part.getFilename()) ? part.getFilename() : "unnamed_" + System.currentTimeMillis();
+                String storagePath = provider.storeAttachment(mailboxId, messageId, fileName, data);
+                saveEmailAttachmentEntity(savedEmail, part, fileName, storagePath, data.length, provider.providerName());
+
             }
-
-            String fileName = StringUtils.hasText(part.getFilename()) ? part.getFilename() : "unnamed_" + System.currentTimeMillis();
-
-            EmailStorageProvider provider = storageProviderFactory.getProvider();
-            String storagePath = provider.storeAttachment(mailboxId, messageId, fileName, data);
-
-            String contentId = null;
-            boolean isInline = false;
-
-            if (part.getHeaders() != null) {
-                for (MessagePartHeader header : part.getHeaders()) {
-                    if ("Content-ID".equalsIgnoreCase(header.getName())) {
-                        contentId = header.getValue();
-                    }
-                    if ("Content-Disposition".equalsIgnoreCase(header.getName())) {
-                        isInline = header.getValue().toLowerCase().startsWith("inline");
-                    }
-                }
-            }
-
-            EmailAttachment attachment = EmailAttachment.builder()
-                    .emailContent(savedEmail)
-                    .emailAttachmentId(part.getBody().getAttachmentId())
-                    .fileName(fileName)
-                    .mimeType(part.getMimeType())
-                    .sizeInBytes((long) data.length)
-                    .storagePath(storagePath)
-                    .storageProvider(provider.providerName())
-                    .contentId(contentId)
-                    .isInline(isInline)
-                    .isProcessed(false)
-                    .build();
-
-            emailAttachmentService.save(attachment);
-            log.info("Attachment saved: '{}' ({}) for message {}", fileName, part.getMimeType(), messageId);
 
         } catch (Exception e) {
             log.warn("Failed to process attachment '{}' for message {}: {}", part.getFilename(), messageId, e.getMessage());
         }
     }
 
-
     private byte[] fetchAttachmentData(Gmail gmail, String messageId, MessagePart part) {
 
         MessagePartBody body = part.getBody();
 
         if (body == null) {
+            log.warn("Empty attachment data for '{}' in message {}", part.getFilename(), messageId);
             return null;
         }
 
         if (StringUtils.hasText(body.getData())) {
+            log.debug("Decoding inline attachment data for '{}' in message {}", part.getFilename(), messageId);
             return decodeBase64Bytes(body.getData());
-        } else if (StringUtils.hasText(body.getAttachmentId())) {
+        }
 
+        if (StringUtils.hasText(body.getAttachmentId())) {
+            log.debug("Fetching remote attachment '{}' (attachmentId={}) for message {}", part.getFilename(), body.getAttachmentId(), messageId);
             MessagePartBody attachmentBody = gmailApiClient.fetchAttachment(gmail, messageId, body.getAttachmentId());
-
             if (attachmentBody != null && StringUtils.hasText(attachmentBody.getData())) {
                 return decodeBase64Bytes(attachmentBody.getData());
             }
         }
 
+        log.warn("Empty attachment data for '{}' in message {}", part.getFilename(), messageId);
         return null;
     }
+
+    private void saveEmailAttachmentEntity(EmailContent savedEmail, MessagePart part, String fileName, String storagePath, long sizeInBytes, String providerName) {
+
+        String contentId = null;
+        boolean isInline = false;
+
+        if (part.getHeaders() != null) {
+            for (MessagePartHeader header : part.getHeaders()) {
+                if ("Content-ID".equalsIgnoreCase(header.getName())) {
+                    contentId = header.getValue();
+                }
+                if ("Content-Disposition".equalsIgnoreCase(header.getName())) {
+                    isInline = header.getValue().toLowerCase().startsWith("inline");
+                }
+            }
+        }
+
+        EmailAttachment attachment = EmailAttachment.builder()
+                .emailContent(savedEmail)
+                .emailAttachmentId(part.getBody().getAttachmentId())
+                .fileName(fileName)
+                .mimeType(part.getMimeType())
+                .sizeInBytes(sizeInBytes)
+                .storagePath(storagePath)
+                .storageProvider(providerName)
+                .contentId(contentId)
+                .isInline(isInline)
+                .build();
+
+        emailAttachmentService.save(attachment);
+        log.info("Attachment saved: '{}' ({}) for message {}", fileName, part.getMimeType(), savedEmail.getMessageId());
+    }
+
+
 }

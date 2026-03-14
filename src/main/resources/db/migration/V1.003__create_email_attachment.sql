@@ -12,14 +12,13 @@ CREATE TABLE email_attachment (
 
     -- storage
     storage_path VARCHAR(1024) NOT NULL,
-    storage_provider VARCHAR(8) NOT NULL DEFAULT 'S3',
+    storage_provider VARCHAR(8) NOT NULL DEFAULT 'local',
 
     -- inline correlation (maps to cid: references in body HTML)
     content_id VARCHAR(1024),
 
     -- processing
     is_inline BOOLEAN NOT NULL DEFAULT FALSE,
-    is_processed BOOLEAN NOT NULL DEFAULT FALSE,
 
     -- audit
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),

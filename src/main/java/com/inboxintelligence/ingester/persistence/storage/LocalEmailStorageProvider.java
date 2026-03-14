@@ -29,7 +29,7 @@ public class LocalEmailStorageProvider implements EmailStorageProvider {
             Path p = dir.resolve("raw_message.json");
             Files.writeString(p, rawMessage, StandardCharsets.UTF_8);
 
-            log.info("Raw message stored locally for message {}", messageId);
+            log.debug("Raw message stored locally for message {}", messageId);
             return p.toString();
 
         } catch (IOException e) {
@@ -50,7 +50,7 @@ public class LocalEmailStorageProvider implements EmailStorageProvider {
             Path p = dir.resolve("body.txt");
             Files.writeString(p, textBody, StandardCharsets.UTF_8);
 
-            log.info("Text body stored locally for message {}", messageId);
+            log.debug("Text body stored locally for message {}", messageId);
             return p.toString();
 
         } catch (IOException e) {
@@ -71,7 +71,7 @@ public class LocalEmailStorageProvider implements EmailStorageProvider {
             Path p = dir.resolve("body.html");
             Files.writeString(p, htmlBody, StandardCharsets.UTF_8);
 
-            log.info("HTML body stored locally for message {}", messageId);
+            log.debug("HTML body stored locally for message {}", messageId);
             return p.toString();
 
         } catch (IOException e) {
@@ -92,6 +92,7 @@ public class LocalEmailStorageProvider implements EmailStorageProvider {
             Path filePath = dir.resolve(safeFileName);
 
             if (Files.exists(filePath)) {
+                log.debug("Filename '{}' already exists for message {}, deduplicating", safeFileName, messageId);
                 String name = safeFileName;
                 String ext = "";
                 int dotIdx = safeFileName.lastIndexOf('.');
@@ -109,6 +110,7 @@ public class LocalEmailStorageProvider implements EmailStorageProvider {
             }
 
             Files.write(filePath, data);
+            log.debug("Attachment stored locally: '{}' ({} bytes) for message {}", filePath.getFileName(), data.length, messageId);
             return filePath.toString();
 
         } catch (IOException e) {

@@ -3,8 +3,8 @@ package com.inboxintelligence.ingester.domain;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.services.gmail.model.WatchResponse;
 import com.inboxintelligence.ingester.config.GmailApiProperties;
-import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.model.SyncStatus;
+import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.outbound.GmailApiClient;
 import com.inboxintelligence.ingester.outbound.GmailClientFactory;
 import com.inboxintelligence.ingester.persistence.service.GmailMailboxService;
@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Handles OAuth token exchange, ID verification, and mailbox onboarding.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -44,7 +47,6 @@ public class GmailTokenService {
         }
     }
 
-
     private String verifyAndExtractEmail(GoogleTokenResponse tokenResponse) throws Exception {
 
         log.info("Verifying Google ID token");
@@ -60,7 +62,6 @@ public class GmailTokenService {
         return email;
     }
 
-
     private WatchResponse startMailboxWatch(GoogleTokenResponse tokenResponse) {
 
         log.info("Starting Gmail mailbox watch (Pub/Sub)");
@@ -73,7 +74,6 @@ public class GmailTokenService {
 
         return response;
     }
-
 
     private void saveGmailMailbox(GoogleTokenResponse tokenResponse, WatchResponse watchResponse, String email) {
 
@@ -91,6 +91,5 @@ public class GmailTokenService {
 
         gmailMailboxService.save(gmailMailbox);
         log.info("Persisted Gmail mailbox entity for {}", email);
-
     }
 }

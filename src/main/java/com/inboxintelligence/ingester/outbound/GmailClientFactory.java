@@ -17,10 +17,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 
+/**
+ * Builds Gmail API client instances using OAuth credentials.
+ */
 @Component
 @Slf4j
 public class GmailClientFactory {
@@ -29,13 +33,14 @@ public class GmailClientFactory {
     private final NetHttpTransport httpTransport;
     private final GsonFactory gsonFactory;
 
-    public GmailClientFactory(GmailApiProperties gmailApiProperties) throws Exception {
+    public GmailClientFactory(GmailApiProperties gmailApiProperties) throws GeneralSecurityException, IOException {
         this.gmailApiProperties = gmailApiProperties;
         this.httpTransport = GoogleNetHttpTransport.newTrustedTransport();
         this.gsonFactory = GsonFactory.getDefaultInstance();
     }
 
     public Gmail createUsingGoogleTokenResponse(GoogleTokenResponse googleTokenResponse) {
+        log.debug("Creating Gmail client using token response");
         var expiresAt = Instant.now().plusSeconds(googleTokenResponse.getExpiresInSeconds());
         var accesstoken = new AccessToken(googleTokenResponse.getAccessToken(), Date.from(expiresAt));
         var credentials = GoogleCredentials.create(accesstoken);
@@ -43,6 +48,7 @@ public class GmailClientFactory {
     }
 
     public Gmail createUsingRefreshToken(String refreshToken) {
+        log.debug("Creating Gmail client using refresh token");
         var credentials = UserCredentials.newBuilder()
                 .setClientId(gmailApiProperties.clientId())
                 .setClientSecret(gmailApiProperties.clientSecret())
@@ -68,6 +74,7 @@ public class GmailClientFactory {
     }
 
     public GoogleAuthorizationCodeTokenRequest createAuthorizationCodeTokenRequest(String authorizationCode) {
+        log.debug("Creating authorization code token request");
         return new GoogleAuthorizationCodeTokenRequest(
                 httpTransport,
                 gsonFactory,
@@ -84,6 +91,4 @@ public class GmailClientFactory {
                 .setAudience(Collections.singletonList(gmailApiProperties.clientId()))
                 .build();
     }
-
-
 }

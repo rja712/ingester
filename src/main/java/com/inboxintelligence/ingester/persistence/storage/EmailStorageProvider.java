@@ -1,6 +1,8 @@
 package com.inboxintelligence.ingester.persistence.storage;
 
-/** Strategy interface for email content and attachment storage. */
+/**
+ * Strategy interface for email content and attachment storage.
+ */
 public interface EmailStorageProvider {
 
     String storeRawMessage(Long mailboxId, String messageId, String rawMessage);

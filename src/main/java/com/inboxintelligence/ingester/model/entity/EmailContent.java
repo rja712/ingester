@@ -1,9 +1,10 @@
 package com.inboxintelligence.ingester.model.entity;
 
+import com.inboxintelligence.ingester.model.ProcessedStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(
@@ -68,25 +69,26 @@ public class EmailContent {
     private String processedContentPath;
 
     @Column(name = "sent_at")
-    private LocalDateTime sentAt;
+    private Instant sentAt;
 
     @Column(name = "received_at")
-    private LocalDateTime receivedAt;
+    private Instant receivedAt;
 
-    @Column(name = "is_processed", nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "processed_status", nullable = false, length = 32)
     @Builder.Default
-    private Boolean isProcessed = false;
+    private ProcessedStatus processedStatus = ProcessedStatus.RECEIVED;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Instant createdAt = Instant.now();
 
     @Column(name = "updated_at", nullable = false)
     @Builder.Default
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    private Instant updatedAt = Instant.now();
 
     @PreUpdate
     public void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = Instant.now();
     }
 }

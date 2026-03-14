@@ -3,7 +3,7 @@ package com.inboxintelligence.ingester.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(
@@ -48,7 +48,7 @@ public class EmailAttachment {
 
     @Column(name = "storage_provider", nullable = false, length = 8)
     @Builder.Default
-    private String storageProvider = "LOCAL";
+    private String storageProvider = "local";
 
     @Column(name = "content_id", length = 1024)
     private String contentId;
@@ -57,11 +57,7 @@ public class EmailAttachment {
     @Builder.Default
     private Boolean isInline = false;
 
-    @Column(name = "is_processed", nullable = false)
-    @Builder.Default
-    private Boolean isProcessed = false;
-
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
+    private Instant createdAt = Instant.now();
 }

@@ -12,7 +12,9 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
 
-/** Low-level Gmail API client with resilience4j retry for transient errors. */
+/**
+ * Low-level Gmail API client with resilience4j retry for transient errors.
+ */
 @Component
 @Slf4j
 public class GmailApiClient {
@@ -20,6 +22,7 @@ public class GmailApiClient {
     @Retry(name = "gmailRetry")
     public ListHistoryResponse fetchHistory(Gmail gmail, long startHistoryId, String pageToken) {
 
+        log.debug("Gmail API: fetchHistory startHistoryId={} pageToken={}", startHistoryId, pageToken);
         try {
             return gmail.users()
                     .history()
@@ -37,6 +40,7 @@ public class GmailApiClient {
     @Retry(name = "gmailRetry")
     public Message fetchMessage(Gmail gmail, String messageId) {
 
+        log.debug("Gmail API: fetchMessage messageId={}", messageId);
         try {
             return gmail.users()
                     .messages()
@@ -53,6 +57,7 @@ public class GmailApiClient {
     @Retry(name = "gmailRetry")
     public MessagePartBody fetchAttachment(Gmail gmail, String messageId, String attachmentId) {
 
+        log.debug("Gmail API: fetchAttachment messageId={} attachmentId={}", messageId, attachmentId);
         try {
             return gmail.users()
                     .messages()
@@ -69,6 +74,7 @@ public class GmailApiClient {
     @Retry(name = "gmailRetry")
     public WatchResponse watchMailbox(Gmail gmail, String topic, List<String> labelIds) {
 
+        log.debug("Gmail API: watchMailbox topic={} labelIds={}", topic, labelIds);
         try {
             var watchRequest = new WatchRequest()
                     .setTopicName(topic)
@@ -86,9 +92,11 @@ public class GmailApiClient {
         int status = ex.getStatusCode();
 
         if (status == 429 || status >= 500) {
+            log.warn("Gmail API: {} returned retryable status {}", operation, status);
             return new RetryableGmailApiException("Retrying " + operation + ": Received " + status);
         }
 
-        return new IllegalArgumentException("Non-retryable Gmail error in " + operation, ex);
+        log.error("Gmail API: {} returned non-retryable status {}", operation, status, ex);
+        return new IllegalStateException("Non-retryable Gmail error in " + operation, ex);
     }
 }

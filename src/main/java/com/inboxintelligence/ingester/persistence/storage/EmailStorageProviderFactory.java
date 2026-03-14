@@ -8,7 +8,9 @@ import org.springframework.util.StringUtils;
 import java.util.Locale;
 import java.util.Map;
 
-/** Selects the active EmailStorageProvider based on configuration. */
+/**
+ * Selects the active EmailStorageProvider based on configuration.
+ */
 @Component
 @Slf4j
 public class EmailStorageProviderFactory {

@@ -7,14 +7,14 @@ import lombok.experimental.UtilityClass;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
 import static com.inboxintelligence.ingester.utils.Base64Util.decodeBase64String;
 
-/** Walks MIME trees and extracts body text, HTML, and attachment parts. */
+/**
+ * Walks MIME trees and extracts body text, HTML, and attachment parts.
+ */
 @UtilityClass
 public final class MimeContentUtil {
 
@@ -62,15 +62,13 @@ public final class MimeContentUtil {
                 .orElse(null);
     }
 
-    public static LocalDateTime parseInternalDate(Message message) {
+    public static Instant parseInternalDate(Message message) {
 
         if (message.getInternalDate() == null) {
             return null;
         }
 
-        return Instant.ofEpochMilli(message.getInternalDate())
-                .atZone(ZoneId.systemDefault())
-                .toLocalDateTime();
+        return Instant.ofEpochMilli(message.getInternalDate());
     }
 
     private static String findTextBody(MessagePart part) {

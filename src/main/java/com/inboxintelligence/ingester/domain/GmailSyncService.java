@@ -1,7 +1,10 @@
 package com.inboxintelligence.ingester.domain;
 
 import com.google.api.services.gmail.Gmail;
-import com.google.api.services.gmail.model.*;
+import com.google.api.services.gmail.model.History;
+import com.google.api.services.gmail.model.HistoryMessageAdded;
+import com.google.api.services.gmail.model.ListHistoryResponse;
+import com.google.api.services.gmail.model.Message;
 import com.inboxintelligence.ingester.model.entity.GmailMailbox;
 import com.inboxintelligence.ingester.outbound.GmailApiClient;
 import com.inboxintelligence.ingester.outbound.GmailClientFactory;
@@ -17,11 +20,15 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
-/** Handles Gmail mailbox sync concurrency control and trigger logic. */
+/**
+ * Handles Gmail mailbox sync concurrency control and trigger logic.
+ */
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class GmailSyncService {
+
+    private static final int MAX_SYNC_ITERATIONS = 50;
 
     private final GmailClientFactory gmailClientFactory;
     private final GmailApiClient gmailApiClient;
@@ -35,11 +42,13 @@ public class GmailSyncService {
     public void triggerSyncJob(GmailMailbox mailbox, Long eventHistoryId) throws IOException {
 
         String email = mailbox.getEmailAddress();
+        log.debug("Sync triggered for {} with eventHistoryId {}", email, eventHistoryId);
+
         mailboxMaxHistory.merge(email, eventHistoryId, Math::max);
         ReentrantLock lock = mailboxLocks.computeIfAbsent(email, k -> new ReentrantLock());
 
         if (mailbox.getHistoryId() > eventHistoryId) {
-            log.info("Ignoring stale Gmail event");
+            log.info("Ignoring stale Gmail event for {} (mailbox historyId {} > event historyId {})", email, mailbox.getHistoryId(), eventHistoryId);
             return;
         }
 
@@ -53,6 +62,7 @@ public class GmailSyncService {
         } finally {
             lock.unlock();
             mailboxLocks.remove(email, lock);
+            mailboxMaxHistory.remove(email);
         }
     }
 
@@ -60,7 +70,7 @@ public class GmailSyncService {
 
         String email = mailbox.getEmailAddress();
 
-        while (true) {
+        for (int i = 0; i < MAX_SYNC_ITERATIONS; i++) {
 
             long lastSynced = mailbox.getHistoryId();
             long latestEvent = mailboxMaxHistory.getOrDefault(email, lastSynced);
@@ -72,11 +82,13 @@ public class GmailSyncService {
 
             syncGmailMailbox(mailbox);
         }
+
+        log.warn("Sync loop reached max iterations ({}) for {}", MAX_SYNC_ITERATIONS, mailbox.getEmailAddress());
     }
 
-    public void syncGmailMailbox(GmailMailbox mailbox) throws IOException {
+    private void syncGmailMailbox(GmailMailbox mailbox) throws IOException {
 
-        log.info("Syncing mailbox {}", mailbox.getEmailAddress());
+        log.info("Syncing mailbox {} from historyId {}", mailbox.getEmailAddress(), mailbox.getHistoryId());
         Gmail gmail = gmailClientFactory.createUsingRefreshToken(mailbox.getRefreshToken());
         String pageToken = null;
         Long latestHistoryId = null;
@@ -86,7 +98,7 @@ public class GmailSyncService {
             ListHistoryResponse response = gmailApiClient.fetchHistory(gmail, mailbox.getHistoryId(), pageToken);
 
             if (response == null) {
-                log.error("Gmail returned null response");
+                log.error("Gmail returned null history response for {}", mailbox.getEmailAddress());
                 return;
             }
 
@@ -94,6 +106,7 @@ public class GmailSyncService {
 
             pageToken = response.getNextPageToken();
             latestHistoryId = response.getHistoryId().longValue();
+            log.debug("History page fetched for {}, latestHistoryId={}, nextPageToken={}", mailbox.getEmailAddress(), latestHistoryId, pageToken);
 
         } while (pageToken != null);
 
@@ -103,8 +116,11 @@ public class GmailSyncService {
     private void processHistory(Gmail gmail, GmailMailbox mailbox, List<History> historyList) {
 
         if (CollectionUtils.isEmpty(historyList)) {
+            log.debug("No history entries to process for {}", mailbox.getEmailAddress());
             return;
         }
+
+        log.debug("Processing {} history entries for {}", historyList.size(), mailbox.getEmailAddress());
 
         for (History history : historyList) {
 
@@ -126,6 +142,7 @@ public class GmailSyncService {
 
         String messageId = historyMessageAdded.getMessage().getId();
         if (emailContentService.existsByGmailMailboxIdAndMessageId(mailbox.getId(), messageId)) {
+            log.debug("Skipping duplicate message {} for {}", messageId, mailbox.getEmailAddress());
             return;
         }
 
@@ -133,7 +150,7 @@ public class GmailSyncService {
             Message message = gmailApiClient.fetchMessage(gmail, messageId);
             gmailMessageProcessingService.process(gmail, mailbox.getId(), message);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.error("Failed to process message {} for mailbox {}", messageId, mailbox.getEmailAddress(), e);
         }
     }
 
@@ -143,7 +160,7 @@ public class GmailSyncService {
             return;
         }
 
-        log.info("Updating historyId {}", historyId);
+        log.info("Updating historyId {} for {}", historyId, mailbox.getEmailAddress());
 
         mailbox.setHistoryId(historyId);
         gmailMailboxService.save(mailbox);
