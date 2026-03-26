@@ -119,11 +119,6 @@ public class LocalEmailStorageProvider implements EmailStorageProvider {
         }
     }
 
-    @Override
-    public String providerName() {
-        return "local";
-    }
-
     private Path buildContentStoragePath(Long mailboxId, String messageId) {
         return Path.of(properties.localBasePath())
                 .resolve(String.valueOf(mailboxId))

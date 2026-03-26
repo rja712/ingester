@@ -13,5 +13,4 @@ public interface EmailStorageProvider {
 
     String storeAttachment(Long mailboxId, String messageId, String fileName, byte[] data);
 
-    String providerName();
 }

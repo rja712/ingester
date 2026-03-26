@@ -25,8 +25,4 @@ public class S3EmailStorageProvider implements EmailStorageProvider {
         throw new UnsupportedOperationException("S3EmailStorageProvider is not implemented");
     }
 
-    @Override
-    public String providerName() {
-        return "s3";
-    }
 }
