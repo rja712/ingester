@@ -12,6 +12,7 @@ public record GmailApiProperties(
         String scope,
         String pubsubTopic,
         String projectId,
-        String pubsubSubscriptionId
+        String pubsubSubscriptionId,
+        String serviceAccountKeyPath
 ) {
 }

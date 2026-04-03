@@ -37,10 +37,14 @@ out/
 .vscode/
 
 ### ADC ###
-/inboxintelligence-01-714e2b66066c.json
+gcp-service-account.json
 
 ### Claude Code ###
 .claude/
 
 ### Local storage Data ###
 data/
+
+
+### Environment Variables ###
+.env

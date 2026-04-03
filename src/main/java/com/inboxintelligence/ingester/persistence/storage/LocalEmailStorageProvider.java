@@ -120,7 +120,7 @@ public class LocalEmailStorageProvider implements EmailStorageProvider {
     }
 
     private Path buildContentStoragePath(Long mailboxId, String messageId) {
-        return Path.of(properties.localBasePath())
+        return Path.of(properties.localBasePath()).toAbsolutePath()
                 .resolve(String.valueOf(mailboxId))
                 .resolve(messageId);
     }

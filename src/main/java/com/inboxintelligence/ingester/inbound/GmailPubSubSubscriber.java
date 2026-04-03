@@ -1,6 +1,7 @@
 package com.inboxintelligence.ingester.inbound;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.pubsub.v1.ProjectSubscriptionName;
@@ -16,6 +17,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.Path;
 
 import static com.inboxintelligence.ingester.model.SyncStatus.DISCONNECTED;
 
@@ -36,10 +41,17 @@ public class GmailPubSubSubscriber {
     private Subscriber subscriber;
 
     @PostConstruct
-    public void start() {
+    public void start() throws IOException {
 
         var projectSubscriptionName = ProjectSubscriptionName.of(gmailApiProperties.projectId(), gmailApiProperties.pubsubSubscriptionId());
-        subscriber = Subscriber.newBuilder(projectSubscriptionName, this::handleMessage).build();
+
+        var keyPath = Path.of(gmailApiProperties.serviceAccountKeyPath()).toAbsolutePath();
+        log.info("Loading GCP credentials from: {}", keyPath);
+        var credentials = GoogleCredentials.fromStream(new FileInputStream(keyPath.toFile()));
+
+        subscriber = Subscriber.newBuilder(projectSubscriptionName, this::handleMessage)
+                .setCredentialsProvider(() -> credentials)
+                .build();
         subscriber.startAsync().awaitRunning();
         log.info("Gmail Pub/Sub subscriber started for subscription={}", projectSubscriptionName);
 
