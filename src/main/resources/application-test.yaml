@@ -1,3 +1,11 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
 gmail-api:
   client-id: test
   client-secret: test
@@ -7,3 +15,12 @@ gmail-api:
   project-id: test
   pubsub-subscription-id: test
   service-account-key-path: ./gcp-service-account.json
+
+rabbitmq:
+  exchange: test
+  queue: test
+  routing-key: test
+
+email-storage:
+  provider: LOCAL
+  local-base-path: /tmp/ingester-test
