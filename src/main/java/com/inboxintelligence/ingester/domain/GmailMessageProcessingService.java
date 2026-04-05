@@ -5,7 +5,6 @@ import com.google.api.services.gmail.model.Message;
 import com.google.api.services.gmail.model.MessagePart;
 import com.google.api.services.gmail.model.MessagePartBody;
 import com.google.api.services.gmail.model.MessagePartHeader;
-import com.inboxintelligence.persistence.config.EmailStorageProperties;
 import com.inboxintelligence.persistence.model.ProcessedStatus;
 import com.inboxintelligence.persistence.model.entity.EmailAttachment;
 import com.inboxintelligence.persistence.model.entity.EmailContent;
@@ -21,7 +20,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.time.Instant;
 
 import static com.inboxintelligence.ingester.utils.Base64Util.decodeBase64Bytes;
@@ -38,7 +36,6 @@ public class GmailMessageProcessingService {
     private final EmailContentService emailContentService;
     private final EmailAttachmentService emailAttachmentService;
     private final EmailStorageProviderFactory storageProviderFactory;
-    private final EmailStorageProperties emailStorageProperties;
     private final EmailEventPublisher emailEventPublisher;
 
     public void process(Gmail gmail, Long mailboxId, Message message) {
@@ -91,11 +88,10 @@ public class GmailMessageProcessingService {
         MessagePart messagePartPayload = message.getPayload();
 
         var provider = storageProviderFactory.getProvider();
-        String dir = buildStoragePath(mailboxId, messageId);
 
-        savedEmail.setRawMessagePath(provider.writeContent(dir, "raw_message.json", message.toPrettyString()));
-        savedEmail.setBodyContentPath(provider.writeContent(dir, "body.txt", MimeContentUtil.extractTextBody(messagePartPayload)));
-        savedEmail.setBodyHtmlContentPath(provider.writeContent(dir, "body.html", MimeContentUtil.extractHtmlBody(messagePartPayload)));
+        savedEmail.setRawMessagePath(provider.writeContent(mailboxId, messageId, "raw_message.json", message.toPrettyString()));
+        savedEmail.setBodyContentPath(provider.writeContent(mailboxId, messageId, "body.txt", MimeContentUtil.extractTextBody(messagePartPayload)));
+        savedEmail.setBodyHtmlContentPath(provider.writeContent(mailboxId, messageId, "body.html", MimeContentUtil.extractHtmlBody(messagePartPayload)));
 
         savedEmail.setProcessedStatus(ProcessedStatus.CONTENT_SAVED);
         emailContentService.save(savedEmail);
@@ -133,8 +129,7 @@ public class GmailMessageProcessingService {
 
                 EmailStorageProvider provider = storageProviderFactory.getProvider();
                 String fileName = StringUtils.hasText(part.getFilename()) ? part.getFilename() : "unnamed_" + System.currentTimeMillis();
-                String attachmentDir = buildStoragePath(mailboxId, messageId) + "/attachment";
-                String storagePath = provider.writeBytes(attachmentDir, fileName, data);
+                String storagePath = provider.writeBytes(mailboxId, messageId, "attachment", fileName, data);
                 saveEmailAttachmentEntity(savedEmail, part, fileName, storagePath, data.length, provider.getClass().getSimpleName());
             }
         } catch (Exception e) {
@@ -168,13 +163,6 @@ public class GmailMessageProcessingService {
 
         log.warn("Empty attachment data for '{}' in message {}", part.getFilename(), messageId);
         return null;
-    }
-
-    private String buildStoragePath(Long mailboxId, String messageId) {
-        return Path.of(emailStorageProperties.localBasePath()).toAbsolutePath()
-                .resolve(String.valueOf(mailboxId))
-                .resolve(messageId)
-                .toString();
     }
 
     private void saveEmailAttachmentEntity(EmailContent savedEmail, MessagePart part, String fileName, String storagePath, long sizeInBytes, String providerName) {
