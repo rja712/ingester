@@ -4,12 +4,16 @@ spring:
     driver-class-name: org.h2.Driver
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
   rabbitmq:
     host: localhost
     port: 5672
     username: guest
     password: guest
+    email-processing:
+      exchange: test
+      queue: test
+      routing-key: test
 
 gmail-api:
   client-id: test
@@ -20,11 +24,6 @@ gmail-api:
   project-id: test
   pubsub-subscription-id: test
   service-account-key-path: ./gcp-service-account.json
-
-rabbitmq:
-  exchange: test
-  queue: test
-  routing-key: test
 
 email-storage:
   provider: LOCAL

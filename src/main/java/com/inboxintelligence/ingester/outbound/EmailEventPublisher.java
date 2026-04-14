@@ -1,6 +1,6 @@
 package com.inboxintelligence.ingester.outbound;
 
-import com.inboxintelligence.persistence.config.RabbitMQProperties;
+import com.inboxintelligence.ingester.config.RabbitMQProperties;
 import com.inboxintelligence.persistence.model.EmailProcessedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

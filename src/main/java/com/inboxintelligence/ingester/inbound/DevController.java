@@ -5,7 +5,6 @@ import com.inboxintelligence.persistence.repository.EmailContentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,7 +21,7 @@ public class DevController {
     private final EmailContentRepository emailContentRepository;
     private final EmailEventPublisher emailEventPublisher;
 
-    @GetMapping("/republish-all")
+    @PostMapping("/republish-all")
     public ResponseEntity<String> republishAll() {
 
         var emails = emailContentRepository.findAll();

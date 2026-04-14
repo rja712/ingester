@@ -26,6 +26,15 @@ spring:
     port: ${RABBITMQ_PORT}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
+    email-processing:
+      exchange: ${RABBITMQ_EXCHANGE}
+      queue: ${RABBITMQ_QUEUE}
+      routing-key: ${RABBITMQ_ROUTING_KEY}
+
+
+
+
+
 
 resilience4j:
   retry:
@@ -43,18 +52,13 @@ gmail-api:
   application-name: "InboxIntelligence"
   client-id: ${GOOGLE_CLIENT_ID}
   client-secret: ${GOOGLE_CLIENT_SECRET}
-  redirect-uri: ${GMAIL_REDIRECT_URI}
+  redirect-uri: ${GOOGLE_REDIRECT_URI}
   token-url: "https://oauth2.googleapis.com/token"
   scope: "openid email https://www.googleapis.com/auth/gmail.readonly"
   pubsub-topic: ${GCP_PUBSUB_TOPIC}
   project-id: ${GCP_PROJECT_ID}
   pubsub-subscription-id: ${GCP_PUBSUB_SUBSCRIPTION_ID}
   service-account-key-path: ${GCP_SERVICE_ACCOUNT_KEY_PATH:./gcp-service-account.json}
-
-rabbitmq:
-  exchange: ${RABBITMQ_EXCHANGE}
-  queue: ${RABBITMQ_QUEUE}
-  routing-key: ${RABBITMQ_ROUTING_KEY}
 
 email-storage:
   provider: ${EMAIL_STORAGE_PROVIDER}
