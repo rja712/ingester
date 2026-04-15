@@ -11,10 +11,10 @@ import org.springframework.context.annotation.Configuration;
 @RequiredArgsConstructor
 public class RabbitMQConfig {
 
-    private final RabbitMQProperties properties;
+    private final EmailEventPublishProperties properties;
 
     @Bean
-    public TopicExchange emailOutboundExchange() {
+    public TopicExchange emailEventExchange() {
         return new TopicExchange(properties.exchange());
     }
 

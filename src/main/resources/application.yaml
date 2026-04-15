@@ -26,10 +26,9 @@ spring:
     port: ${RABBITMQ_PORT}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
-    email-processing:
-      exchange: ${RABBITMQ_EXCHANGE}
-      queue: ${RABBITMQ_QUEUE}
-      routing-key: ${RABBITMQ_ROUTING_KEY}
+    email-event:
+      exchange: ${RABBITMQ_EMAIL_EVENT_EXCHANGE}
+      routing-key: ${RABBITMQ_EMAIL_SANITIZATION_ROUTING_KEY}
 
 resilience4j:
   retry:

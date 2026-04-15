@@ -10,9 +10,8 @@ spring:
     port: 5672
     username: guest
     password: guest
-    email-processing:
+    email-event:
       exchange: test
-      queue: test
       routing-key: test
 
 gmail-api:
