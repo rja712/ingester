@@ -1,7 +1,7 @@
 package com.inboxintelligence.ingester.inbound;
 
 import com.inboxintelligence.ingester.outbound.EmailEventPublisher;
-import com.inboxintelligence.persistence.repository.EmailContentRepository;
+import com.inboxintelligence.persistence.service.EmailContentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -18,16 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class DevController {
 
-    private final EmailContentRepository emailContentRepository;
+    private final EmailContentService emailContentService;
     private final EmailEventPublisher emailEventPublisher;
 
     @PostMapping("/republish-all")
     public ResponseEntity<String> republishAll() {
 
-        var emails = emailContentRepository.findAll();
+        var emails = emailContentService.findAll();
         log.info("Republishing {} emails to RabbitMQ", emails.size());
 
         for (var email : emails) {
+            emailContentService.updateProcessingNote(email, null);
             emailEventPublisher.publishEmailProcessed(email.getId());
         }
 
