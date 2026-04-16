@@ -28,8 +28,7 @@ public class DevController {
         log.info("Republishing {} emails to RabbitMQ", emails.size());
 
         for (var email : emails) {
-            emailContentService.updateProcessingNote(email, null);
-            emailEventPublisher.publishEmailProcessed(email.getId());
+            emailEventPublisher.publishEmailProcessed(email);
         }
 
         return ResponseEntity.ok("Republished " + emails.size() + " emails to RabbitMQ");

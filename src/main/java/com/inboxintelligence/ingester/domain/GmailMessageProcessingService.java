@@ -7,7 +7,6 @@ import com.google.api.services.gmail.model.MessagePartBody;
 import com.google.api.services.gmail.model.MessagePartHeader;
 import com.inboxintelligence.ingester.outbound.EmailEventPublisher;
 import com.inboxintelligence.ingester.outbound.GmailApiClient;
-import com.inboxintelligence.persistence.model.ProcessedStatus;
 import com.inboxintelligence.persistence.model.entity.EmailAttachment;
 import com.inboxintelligence.persistence.model.entity.EmailContent;
 import com.inboxintelligence.persistence.service.EmailAttachmentService;
@@ -23,6 +22,7 @@ import java.io.IOException;
 import java.time.Instant;
 
 import static com.inboxintelligence.ingester.utils.Base64Util.decodeBase64Bytes;
+import static com.inboxintelligence.persistence.model.ProcessedStatus.*;
 
 /**
  * Orchestrates the full processing of a Gmail message: extract, store, save, and handle attachments.
@@ -47,11 +47,13 @@ public class GmailMessageProcessingService {
             savedEmail = saveEmailContentEntity(mailboxId, message);
             saveEmailContentInStorage(mailboxId, message, savedEmail);
             saveEmailAttachment(gmail, mailboxId, message, savedEmail);
-            emailEventPublisher.publishEmailProcessed(savedEmail.getId());
+
+            emailEventPublisher.publishEmailProcessed(savedEmail);
+
         } catch (Exception e) {
             log.error("Failed to process message {} for mailbox {}", message.getId(), mailboxId, e);
             if (savedEmail != null) {
-                emailContentService.updateProcessingNote(savedEmail, e.getMessage());
+                emailContentService.updateStatusAndNote(savedEmail, PROCESSING_FAILED, e.getMessage());
             }
             throw new RuntimeException(e);
         }
@@ -75,7 +77,7 @@ public class GmailMessageProcessingService {
                 .ccAddress(MimeContentUtil.getHeader(message, "Cc"))
                 .sentAt(messageDate)
                 .receivedAt(messageDate)
-                .processedStatus(ProcessedStatus.RECEIVED)
+                .processedStatus(RECEIVED)
                 .build();
 
         var savedEmail = emailContentService.save(emailContent);
@@ -97,7 +99,7 @@ public class GmailMessageProcessingService {
         savedEmail.setBodyContentPath(provider.writeContent(mailboxId, messageId, "body.txt", MimeContentUtil.extractTextBody(messagePartPayload)));
         savedEmail.setBodyHtmlContentPath(provider.writeContent(mailboxId, messageId, "body.html", MimeContentUtil.extractHtmlBody(messagePartPayload)));
 
-        savedEmail.setProcessedStatus(ProcessedStatus.CONTENT_SAVED);
+        savedEmail.setProcessedStatus(CONTENT_SAVED);
         emailContentService.save(savedEmail);
 
         log.info("Content saved for message {}", messageId);
@@ -117,7 +119,7 @@ public class GmailMessageProcessingService {
 
         list.forEach(part -> processAttachmentMessageParts(gmail, savedEmail, mailboxId, messageId, part));
 
-        savedEmail.setProcessedStatus(ProcessedStatus.ATTACHMENT_SAVED);
+        savedEmail.setProcessedStatus(ATTACHMENT_SAVED);
         emailContentService.save(savedEmail);
 
         log.info("Attachments saved for message {}", messageId);
