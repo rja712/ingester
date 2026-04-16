@@ -20,10 +20,10 @@ public class EmailEventPublisher {
     private final EmailEventPublishProperties queueProperties;
     private final EmailContentService emailContentService;
 
-    public void publishEmailProcessed(EmailContent savedEmail) {
-        var event = new EmailEvent(savedEmail.getId());
+    public void publishEmailProcessed(EmailContent emailContent) {
+        var event = new EmailEvent(emailContent.getId());
         rabbitTemplate.convertAndSend(queueProperties.exchange(), queueProperties.routingKey(), event);
-        emailContentService.updateStatusAndNote(savedEmail, PUBLISHED_FOR_SANITIZATION, null);
+        emailContentService.updateStatusAndNote(emailContent, PUBLISHED_FOR_SANITIZATION, null);
         log.info("Published email processed event: {}", event);
     }
 }
