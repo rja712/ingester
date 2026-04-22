@@ -16,8 +16,8 @@ import java.util.List;
 /**
  * Low-level Gmail API client with resilience4j retry for transient errors.
  */
-@Component
 @Slf4j
+@Component
 public class GmailApiClient {
 
     @Retry(name = "gmailRetry")

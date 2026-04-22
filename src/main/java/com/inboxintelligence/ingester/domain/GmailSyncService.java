@@ -24,8 +24,8 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Handles Gmail mailbox sync concurrency control and trigger logic.
  */
-@Service
 @Slf4j
+@Service
 @RequiredArgsConstructor
 public class GmailSyncService {
 

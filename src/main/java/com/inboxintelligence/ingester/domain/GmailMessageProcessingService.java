@@ -27,8 +27,8 @@ import static com.inboxintelligence.persistence.model.ProcessedStatus.*;
 /**
  * Orchestrates the full processing of a Gmail message: extract, store, save, and handle attachments.
  */
-@Component
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class GmailMessageProcessingService {
 
