@@ -77,7 +77,7 @@ public class GmailMessageProcessingService {
                 .ccAddress(MimeContentUtil.getHeader(message, "Cc"))
                 .sentAt(messageDate)
                 .receivedAt(messageDate)
-                .processedStatus(RECEIVED)
+                .processedStatus(EMAIL_RECEIVED)
                 .build();
 
         var savedEmail = emailContentService.save(emailContent);
