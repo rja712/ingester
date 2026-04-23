@@ -61,7 +61,7 @@ public class GmailMessageProcessingService {
 
     private EmailContent saveEmailContentEntity(Long mailboxId, Message message) {
 
-        // Step 1: Save email metadata to DB with status RECEIVED
+        // Step 1: Save email metadata to DB with status EMAIL_RECEIVED
 
         String messageId = message.getId();
         Instant messageDate = MimeContentUtil.parseInternalDate(message);
