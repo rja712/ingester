@@ -6,6 +6,7 @@ import com.google.api.services.gmail.model.Message;
 import com.inboxintelligence.ingester.exception.MessageNotFoundException;
 import com.inboxintelligence.ingester.outbound.GmailApiClient;
 import com.inboxintelligence.ingester.outbound.GmailClientFactory;
+import com.inboxintelligence.persistence.model.EmailOrigin;
 import com.inboxintelligence.persistence.model.entity.GmailMailbox;
 import com.inboxintelligence.persistence.service.EmailContentService;
 import com.inboxintelligence.persistence.service.GmailMailboxService;
@@ -57,7 +58,7 @@ public class GmailBackfillService {
 
                 try {
                     Message full = gmailApiClient.fetchMessage(gmail, stub.getId());
-                    gmailMessageProcessingService.process(gmail, mailboxId, full);
+                    gmailMessageProcessingService.process(gmail, mailboxId, full, EmailOrigin.BACKFILL);
                     processed++;
                 } catch (MessageNotFoundException e) {
                     log.warn("Backfill: message {} no longer exists for {} — skipping", stub.getId(), mailbox.getEmailAddress());

@@ -7,6 +7,7 @@ import com.google.api.services.gmail.model.MessagePartBody;
 import com.google.api.services.gmail.model.MessagePartHeader;
 import com.inboxintelligence.ingester.outbound.EmailEventPublisher;
 import com.inboxintelligence.ingester.outbound.GmailApiClient;
+import com.inboxintelligence.persistence.model.EmailOrigin;
 import com.inboxintelligence.persistence.model.entity.EmailAttachment;
 import com.inboxintelligence.persistence.model.entity.EmailContent;
 import com.inboxintelligence.persistence.service.EmailAttachmentService;
@@ -36,13 +37,13 @@ public class GmailMessageProcessingService {
     private final EmailStorageProviderFactory storageProviderFactory;
     private final EmailEventPublisher emailEventPublisher;
 
-    public void process(Gmail gmail, Long mailboxId, Message message) {
+    public void process(Gmail gmail, Long mailboxId, Message message, EmailOrigin origin) {
 
         EmailContent savedEmail = null;
         try {
             log.debug("Processing message {} for mailbox {}", message.getId(), mailboxId);
 
-            savedEmail = saveEmailContentEntity(mailboxId, message);
+            savedEmail = saveEmailContentEntity(mailboxId, message, origin);
             saveEmailContentInStorage(mailboxId, message, savedEmail);
             saveEmailAttachment(gmail, mailboxId, message, savedEmail);
 
@@ -57,7 +58,7 @@ public class GmailMessageProcessingService {
         }
     }
 
-    private EmailContent saveEmailContentEntity(Long mailboxId, Message message) {
+    private EmailContent saveEmailContentEntity(Long mailboxId, Message message, EmailOrigin origin) {
 
         String messageId = message.getId();
         Instant messageDate = MimeContentUtil.parseInternalDate(message);
@@ -73,6 +74,7 @@ public class GmailMessageProcessingService {
                 .ccAddress(MimeContentUtil.getHeader(message, "Cc"))
                 .sentAt(messageDate)
                 .receivedAt(messageDate)
+                .origin(origin)
                 .processedStatus(EMAIL_RECEIVED)
                 .build();
 
@@ -88,9 +90,13 @@ public class GmailMessageProcessingService {
 
         EmailStorageProvider provider = storageProviderFactory.getProvider();
 
-        savedEmail.setRawMessagePath(provider.writeContent(mailboxId, messageId, "raw_message.json", message.toPrettyString()));
-        savedEmail.setBodyContentPath(provider.writeContent(mailboxId, messageId, "body.txt", MimeContentUtil.extractTextBody(messagePartPayload)));
-        savedEmail.setBodyHtmlContentPath(provider.writeContent(mailboxId, messageId, "body.html", MimeContentUtil.extractHtmlBody(messagePartPayload)));
+        try{
+            savedEmail.setBodyContentPath(provider.writeContent(mailboxId, messageId, "body.txt", MimeContentUtil.extractTextBody(messagePartPayload)));
+            savedEmail.setBodyHtmlContentPath(provider.writeContent(mailboxId, messageId, "body.html", MimeContentUtil.extractHtmlBody(messagePartPayload)));
+        } catch (Exception e) {
+            savedEmail.setRawMessagePath(provider.writeContent(mailboxId, messageId, "raw_message.json", message.toPrettyString()));
+            throw e;
+        }
 
         savedEmail.setProcessedStatus(CONTENT_SAVED);
         emailContentService.save(savedEmail);
