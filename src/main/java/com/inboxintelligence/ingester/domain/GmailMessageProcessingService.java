@@ -130,7 +130,7 @@ public class GmailMessageProcessingService {
                 EmailStorageProvider provider = storageProviderFactory.getProvider();
                 String fileName = StringUtils.hasText(part.getFilename()) ? part.getFilename() : "unnamed_" + System.currentTimeMillis();
                 String storagePath = provider.writeBytes(mailboxId, messageId, "attachment", fileName, data);
-                saveEmailAttachmentEntity(savedEmail, part, fileName, storagePath, data.length, provider.getClass().getSimpleName());
+                saveEmailAttachmentEntity(savedEmail, part, fileName, storagePath, data.length, "local");
             }
         } catch (Exception e) {
             log.warn("Failed to process attachment '{}' for message {}: {}", part.getFilename(), messageId, e.getMessage());
